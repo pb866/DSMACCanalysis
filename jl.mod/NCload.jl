@@ -2,44 +2,37 @@
 
 
 """
-# Module NCload
+  # Module NCload
 
-Load netCDF data with DSMACC output into dataframes for species concentrations
-and reaction rates.
+  Load netCDF data with DSMACC output into dataframes for species concentrations
+  and reaction rates.
 
-# Functions
 
-- get_ncdata (public)
-- ncload (private)
+  # Functions
+
+  - get_ncdata (public)
+  - ncload (private)
 """
 module NCload
 
-##################
-###  PREAMBLE  ###
-##################
+  ##################
+  ###  PREAMBLE  ###
+  ##################
 
-export get_ncdata
+  # Export public functions
+  export get_ncdata
 
-# Define location of external self-made modules
-# (Add or modify to include your own directories)
-# Local Mac:
-if isdir("/Applications/bin/data/jl.mod") &&
-  all(x->x!="/Applications/bin/data/jl.mod", LOAD_PATH)
-  push!(LOAD_PATH,"/Applications/bin/data/jl.mod")
-end
-# earth0:
-if isdir("~/Util/auxdata/jl.mod") &&
-  all(x->x!="~/Util/auxdata/jl.mod", LOAD_PATH)
-  push!(LOAD_PATH,"~/Util/auxdata/jl.mod")
-end
-# Assume either DSMACC main folder or DSMACC/AnalysisTools/DSMACCplot
-# as current directory, other wise add/adjust folder path here:
-if splitdir(pwd())[2] == "DSMACCplot"  def_dir = "../../save/results"
-else def_dir = "./save/results"
-end
-# Load modules/functions/python libraries
-using PyCall, DataFrames
-using fhandle: test_file
+  # Assume either DSMACC main folder or DSMACC/AnalysisTools/DSMACCplot
+  # as current directory, other wise add/adjust folder path here:
+  if splitdir(pwd())[2] == "DSMACCplot"  def_dir = "../../save/results"
+  else def_dir = "./save/results"
+  end
+
+  # Loading Julia and self-made modules
+  # Define directories of self-made modules in main script
+  # (absolute or relative paths to location, where main script is called)
+  using PyCall, DataFrames
+  using fhandle: test_file
 
 
 ###################
@@ -49,8 +42,8 @@ using fhandle: test_file
 """
     get_ncdata(ncfile::String)
 
-Load netCDF data from `ncfile` and return dataframes with species concentrations
-`spec` and reaction rates `rate`.
+  Load netCDF data from `ncfile` and return dataframes with species concentrations
+  `spec` and reaction rates `rate`.
 """
 function get_ncdata(ncfile::String)
 
@@ -75,9 +68,9 @@ end
 """
     ncload(nc::Dict{Any,Any},what::String="spec")
 
-Load data from dictonary `nc` with netCDF data from DSMACC output into a dataframe
-and return it. Only `what` is specified (species concentrations or reaction rates)
-will be returned (by default species concentrations).
+  Load data from dictonary `nc` with netCDF data from DSMACC output into a dataframe
+  and return it. Only `what` is specified (species concentrations or reaction rates)
+  will be returned (by default species concentrations).
 """
 function ncload(nc::Dict{Any,Any},what::String="spec")
 
