@@ -1,5 +1,6 @@
 __precompile__()
 
+
 """
   # Module jlplot
 
@@ -138,6 +139,7 @@ function prepare_plots(commission,label)
   new_case = true
   icase = []
   what = []
+  unit = []
   plotdata = []
   pdata = []
   # Loop over plotting section of input file
@@ -147,8 +149,16 @@ function prepare_plots(commission,label)
       new_case = false #set flag for new case to false
       # split line into pre- and post-colon
       icol = searchindex(line,":")
-      # Get what to plot (concentrations/rates) from key word after the colon
-      push!(what,strip(line[icol+1:end]))
+      # Get post-colon data and save what to plot (concentrations/rates) and units
+      wh = ""; un = ""
+      try wh, un = split(line[icol+1:end],"/")
+      catch
+        # If units are obsolete, use mlc·cm-3 (s-1) as default
+        wh = strip(line[icol+1:end])
+        un = "mlc"
+      end
+      push!(what,strip(wh)); push!(unit,strip(un))
+
       # Look for the scenarios to plot before the colon
       # Read scenario labels
       idx = Int64[]
@@ -174,7 +184,7 @@ function prepare_plots(commission,label)
   end
 
   # Return final arrays
-  return icase, what, plotdata
+  return icase, what, unit, plotdata
 end #function prepare_plots
 
 

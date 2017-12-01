@@ -3,17 +3,18 @@ IO/TOLm3.nc IO/TOLm4.nc
 "v3", "v4"
 
 Plotting:
-v3, v4: specs#/cm-3
+v3, v4: specs/mlc
 OH
 HO2
-#
-#v3, v4: specs/ppb
+
+v3, v4: specs/ppb
+O3
 NO NO2
 HNO3 #HONO
 #HONO
 TOLUENE
 
-v3, v4: rates
+v3, v4: rates/ppt
 TOLUENE+OH-->C6H5CH2O2
 TOLUENE+OH-->CRESOL+HO2
 TOLUENE+OH-->TLBIPERO2

@@ -51,7 +51,7 @@ commission, fidx = commission_plot(ARGS[1])
 # Get nc file names and scenario names
 ncfiles, label = get_scenario(commission,fidx[1])
 # Read from input file, which plots to generate
-icase, what, plotdata = prepare_plots(commission[fidx[2]:fidx[3]], label)
+icase, what, unit, plotdata = prepare_plots(commission[fidx[2]:fidx[3]], label)
 # Save DSMACC output using a python script
 # to read nc files and save in Julia format
 output = DSMACCoutput(ncfiles)
@@ -69,7 +69,9 @@ for n = 1:length(icase)
   for (i, case) in enumerate(plotdata[n])
     # Increase counter for plots and generate plots
     pdf += 1
-    make_plots.lineplot(output["time"],output[what[n]],label,
+    # make_plots.lineplot(output["time"],output[what[n]],label,unit,
+    #                     icase[n],case,"$(lpad(pdf,4,"0")).pdf")
+    make_plots.lineplot(output["time"],output[what[n]],label,what[n],unit[n],
                         icase[n],case,"$(lpad(pdf,4,"0")).pdf")
   end
 end
