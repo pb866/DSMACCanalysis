@@ -2,16 +2,16 @@
 
 
 """
-  # Module NCload
+# Module NCload
 
-  Load netCDF data with DSMACC output into dataframes for species concentrations
-  and reaction rates.
+Load netCDF data with DSMACC output into dataframes for species concentrations
+and reaction rates.
 
 
-  # Functions
+# Functions
 
-  - get_ncdata (public)
-  - ncload (private)
+- get_ncdata (public)
+- ncload (private)
 """
 module NCload
 
@@ -42,10 +42,10 @@ module NCload
 """
     get_ncdata(ncfile::String)
 
-  Load netCDF data from `ncfile` and return dataframes with species concentrations
-  `spec` and reaction rates `rate`.
+Load netCDF data from `ncfile` and return dataframes with species concentrations
+`spec` and reaction rates `rate`.
 """
-function get_ncdata(ncfile::String)
+function get_ncdata(ncfile::AbstractString)
 
   # Check existance of file
   ncfile = test_file(ncfile,default_dir=def_dir)
@@ -57,8 +57,8 @@ function get_ncdata(ncfile::String)
   nc = ncdata.get(ncfile)
 
   # Load data into dataframes for species and reaction rates
-  spec = ncload(nc,"spec")
-  rate = ncload(nc,"rate")
+  spec = ncload(nc,"specs")
+  rate = ncload(nc,"rates")
 
   # Return dataframes
   return spec, rate
@@ -66,25 +66,21 @@ end
 
 
 """
-    ncload(nc::Dict{Any,Any},what::String="spec")
+    ncload(nc::Dict{Any,Any},what::String="specs")
 
-  Load data from dictonary `nc` with netCDF data from DSMACC output into a dataframe
-  and return it. Only `what` is specified (species concentrations or reaction rates)
-  will be returned (by default species concentrations).
+Load data from dictonary `nc` with netCDF data from DSMACC output into a dataframe
+and return it. Only `what` is specified (species concentrations or reaction rates)
+will be returned (by default species concentrations).
 """
-function ncload(nc::Dict{Any,Any},what::String="spec")
+function ncload(nc::Dict{Any,Any},what::String="specs")
 
   # Initilise dataframe
   df = DataFrame()
   # Define array name with headers
   cols = what[1]*'c'
   # Loop over headers and add dataframe columns
-  for head in nc[cols]
-    df[Symbol(head)] = Float64[]
-  end
-  # Add data to dataframe
-  for i = 1:length(nc[what][:,1])
-    push!(df,nc[what][i,:])
+  for (i,head) in enumerate(nc[cols])
+    df[Symbol(head)] = nc[what][:,i]
   end
 
   # Return dataframe

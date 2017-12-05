@@ -18,5 +18,5 @@ def get(filename):
 
     # di= dict([[specs_columns[i],i] for i in xrange(len(specs_columns))])
 
-    return {'spec':specs,'rate':rates,
+    return {'specs':specs,'rates':rates,
     'sc':specs_columns,'rc':rates_columns}

@@ -2,20 +2,20 @@ __precompile__()
 
 
 """
-  # Module jlplot
+# Module jlplot
 
-  Define type of plots and species/reactions to be plotted from an input file.
-  Generate arrays with Name of DSMACC netCDF files, scenario names,
-  species/reactions to be plotted and further indices needed for the processing
-  of the data.
+Define type of plots and species/reactions to be plotted from an input file.
+Generate arrays with Name of DSMACC netCDF files, scenario names,
+species/reactions to be plotted and further indices needed for the processing
+of the data.
 
 
-  # Public functions
+# Public functions
 
-  - commission_plot,
-  - get_scenario,
-  - prepare_plots,
-  - DSMACCoutput
+- commission_plot,
+- get_scenario,
+- prepare_plots,
+- DSMACCoutput
 """
 module jlplot
 
@@ -36,6 +36,7 @@ module jlplot
   using fhandle
   using NCload
 
+
 ###################
 ###  FUNCTIONS  ###
 ###################
@@ -43,9 +44,9 @@ module jlplot
 """
     commission_plot(ifile::String="plot.inp")
 
-  Read input file `ifile` and return arre with lines `commission` as well as
-  indices for the beginning of the scenario section `scen`, the beginning and end
-  of the plotting section `beg_plt` and `end_plt`.
+Read input file `ifile` and return arre with lines `commission` as well as
+indices for the beginning of the scenario section `scen`, the beginning and end
+of the plotting section `beg_plt` and `end_plt`.
 """
 function commission_plot(ifile::String="plot.inp")
   # Assume either DSMACC main folder or DSMACC/AnalysisTools/DSMACCanalysis
@@ -82,12 +83,12 @@ end #function commission_plot
 """
     get_scenario(lines,strt)
 
-  From `lines` in input file and index `strt` for beginning of the Scenario section,
-  retrieve and return arrays `ncfile` and `label` with directory and name of the
-  DSMACC netCDF files and names for the respective scenarios.
+From `lines` in input file and index `strt` for beginning of the Scenario section,
+retrieve and return arrays `ncfile` and `label` with directory and name of the
+DSMACC netCDF files and names for the respective scenarios.
 
-  If no scenario names are specified, the netCDF file names without the extension
-  will be used.
+If no scenario names are specified, the netCDF file names without the extension
+will be used.
 """
 function get_scenario(lines,strt)
 
@@ -128,10 +129,10 @@ end #function get_scenario
 """
     prepare_plots(commission,label)
 
-  From the plotting section of the input file `commission` and the `label`s of
-  each scenario, retrieve the index `icase` of the scenario to plot, `what` to
-  plot (species concentratiosn/reaction rates) and the `plotdata` with the
-  species/reactions that go into each plot.
+From the plotting section of the input file `commission` and the `label`s of
+each scenario, retrieve the index `icase` of the scenario to plot, `what` to
+plot (species concentratiosn/reaction rates) and the `plotdata` with the
+species/reactions that go into each plot.
 """
 function prepare_plots(commission,label)
 
@@ -191,15 +192,15 @@ end #function prepare_plots
 """
     DSMACCoutput(ncfiles)
 
-  Compile data of netCDF files in Julia readable formats.
+Compile data of netCDF files in Julia readable formats.
 
-  Data will be stored in a dictionary distinguishing between `"specs"` and `"rates"`,
-  each holding an array of dataframes with data from the netCDF files from each scenario
-  compiled in the array and the different species concentrations/reaction rates
-  compiled in the dataframes.
+Data will be stored in a dictionary distinguishing between `"specs"` and `"rates"`,
+each holding an array of dataframes with data from the netCDF files from each scenario
+compiled in the array and the different species concentrations/reaction rates
+compiled in the dataframes.
 
-  The function also calculates the model time starting with `0` at the beginning of the
-  model run and stores an array in the dictionary entry `"time"`.
+The function also calculates the model time starting with `0` at the beginning of the
+model run and stores an array in the dictionary entry `"time"`.
 """
 function DSMACCoutput(ncfiles)
 
@@ -212,9 +213,7 @@ function DSMACCoutput(ncfiles)
   # Loop over all nc file, check for existance and read content
   # separately for species concentrations and reaction rates
   spec = []; rate = []
-  for file in ncfiles
-    # Test existance of file
-    ncfile  = test_file(file, default_dir=def_dir)
+  for ncfile in ncfiles
     # Read species concentrations/reaction rates of current nc file
     spc, rat = get_ncdata(ncfile)
     # Save concentrations/rates in array with all scenarios

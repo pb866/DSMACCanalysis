@@ -2,10 +2,10 @@
 
 
 """
-  # Module DSMACCplot
+# Module DSMACCplot
 
-  Use DSMACC dictionary with netCDF data to plot species concentrations
-  and/or reaction rates for specified species/reactions and netCDF files.
+Use DSMACC dictionary with netCDF data to plot species concentrations
+and/or reaction rates for specified species/reactions and netCDF files.
 """
 module DSMACCplot
 
@@ -36,6 +36,7 @@ push!(LOAD_PATH,"./jl.mod"); push!(LOAD_PATH,"AnalysisTools/DSMACCanalysis/jl.mo
 # Load modules/functions/python libraries
 using PyPlot, DataFrames
 import make_plots
+using groupSPC
 using jlplot
 # Define the netCDF file from the first script argument
 for i = 1:2-length(ARGS)  push!(ARGS,"")  end
@@ -59,6 +60,11 @@ output = DSMACCoutput(ncfiles)
 # In each dictionary entry is is an array for each scenario (nc file)
 # with dataframes for the respectives species concentrations or reaction rates
 
+# Group species by properties
+spcDB = readDB("IO/MCMv331species.db")
+gspc = translateNMVOC(output["specs"],spcDB)
+classes, chrom_class = group_CC(gspc,spcDB)
+output["specs"] = add_CC(output["specs"],chrom_class,classes)
 
 println("plot data...")
 # Initilise counter for output plots
