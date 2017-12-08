@@ -34,7 +34,7 @@ push!(LOAD_PATH,"./jl.mod"); push!(LOAD_PATH,"AnalysisTools/DSMACCanalysis/jl.mo
 # push!(LOAD_PATH,".")
 
 # Load modules/functions/python libraries
-using PyPlot, DataFrames
+using PyPlot, PyCall, DataFrames
 import make_plots
 using groupSPC
 using jlplot
@@ -77,21 +77,23 @@ output["specs"] = add_conc(output["specs"],chrom_class,OCratio_class,size_class,
 
 println("plot data...")
 # Initilise counter for output plots
-pdf = 0
+if ARGS[2] == ""  ARGS[2] = join(label,"_")*".pdf"  end
+@pyimport matplotlib.backends.backend_pdf as pdf
+figures = []
 # Loop over different plot types
 for n = 1:length(icase)
   # Loop over different plots in each plot type
   for (i, case) in enumerate(plotdata[n])
     # Increase counter for plots and generate plots
-    pdf += 1
-    make_plots.lineplot(output["time"],output[what[n]],label,what[n],unit[n],
-                        icase[n],case,"$(lpad(pdf,4,"0")).pdf")
+    fig = make_plots.lineplot(output["time"],output[what[n]],label,what[n],unit[n],
+                              icase[n],case)
+    push!(figures,fig)
   end
 end
+pdffile = pdf.PdfPages(ARGS[2]) # create pdf file
+[pdffile[:savefig](f) for f in figures] # add figures to file
+pdffile[:close]() # close pdf file
 
-# compile subplots to overall pdf
-if ARGS[2] == ""  ARGS[2] = join(label,"_")  end
-make_plots.compile_pdf(".",ARGS[2],ndel=pdf)
 
 println("done.")
 

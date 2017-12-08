@@ -144,8 +144,16 @@ function prepare_plots(commission,label)
   plotdata = []
   pdata = []
   # Loop over plotting section of input file
-  for line in commission
-    if new_case
+  for (i, line) in enumerate(commission)
+    if line == "" && commission[i-1]==""
+      continue
+    elseif line == ""
+      # On empty lines, reset flag for new case, collect current plot data in array
+      # and reset temporary memory for plot data
+      new_case = true
+      push!(plotdata,pdata)
+      pdata = []
+    elseif new_case
       # First line or lines after empty lines look for plot type definition
       new_case = false #set flag for new case to false
       # split line into pre- and post-colon
@@ -171,12 +179,6 @@ function prepare_plots(commission,label)
       end
       # save indices in array icase
       push!(icase,idx)
-    elseif line == ""
-      # On empty lines, reset flag for new case, collect current plot data in array
-      # and reset temporary memory for plot data
-      new_case = true
-      push!(plotdata,pdata)
-      pdata = []
     else
       # Save array with species/reactions to be plotted to array plotdata
       # when reading general data lines
