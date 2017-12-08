@@ -15,24 +15,24 @@ and reaction rates.
 """
 module NCload
 
-  ##################
-  ###  PREAMBLE  ###
-  ##################
+##################
+###  PREAMBLE  ###
+##################
 
-  # Export public functions
-  export get_ncdata
+# Export public functions
+export get_ncdata
 
-  # Assume either DSMACC main folder or DSMACC/AnalysisTools/DSMACCplot
-  # as current directory, other wise add/adjust folder path here:
-  if splitdir(pwd())[2] == "DSMACCplot"  def_dir = "../../save/results"
-  else def_dir = "./save/results"
-  end
+# Assume either DSMACC main folder or DSMACC/AnalysisTools/DSMACCplot
+# as current directory, other wise add/adjust folder path here:
+if splitdir(pwd())[2] == "DSMACCplot"  def_dir = "../../save/results"
+else def_dir = "./save/results"
+end
 
-  # Loading Julia and self-made modules
-  # Define directories of self-made modules in main script
-  # (absolute or relative paths to location, where main script is called)
-  using PyCall, DataFrames
-  using fhandle: test_file
+# Loading Julia and self-made modules
+# Define directories of self-made modules in main script
+# (absolute or relative paths to location, where main script is called)
+using PyCall, DataFrames
+using fhandle: test_file
 
 
 ###################
