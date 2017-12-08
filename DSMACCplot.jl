@@ -2,10 +2,10 @@
 
 
 """
-  # Module DSMACCplot
+# Module DSMACCplot
 
-  Use DSMACC dictionary with netCDF data to plot species concentrations
-  and/or reaction rates for specified species/reactions and netCDF files.
+Use DSMACC dictionary with netCDF data to plot species concentrations
+and/or reaction rates for specified species/reactions and netCDF files.
 """
 module DSMACCplot
 
@@ -36,10 +36,12 @@ push!(LOAD_PATH,"./jl.mod"); push!(LOAD_PATH,"AnalysisTools/DSMACCanalysis/jl.mo
 # Load modules/functions/python libraries
 using PyPlot, DataFrames
 import make_plots
+using groupSPC
 using jlplot
 # Define the netCDF file from the first script argument
 for i = 1:2-length(ARGS)  push!(ARGS,"")  end
 
+#––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––#
 
 #####################
 ###  MAIN SCRIPT  ###
@@ -59,6 +61,19 @@ output = DSMACCoutput(ncfiles)
 # In each dictionary entry is is an array for each scenario (nc file)
 # with dataframes for the respectives species concentrations or reaction rates
 
+#––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––#
+
+println("analyse data...")
+# Load database with different species names
+spcDB = readDB("IO/MCMv331species.db")
+# Translate species names from MCM to GECKO-A
+gspc = translateNMVOC(output["specs"],spcDB)
+# Group species by properties
+CC, OC, CN, chrom_class, OCratio_class, size_class = group_specs(gspc,spcDB)
+# Add new classes to dataframes
+output["specs"] = add_conc(output["specs"],chrom_class,OCratio_class,size_class,CC,OC,CN)
+
+#––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––#
 
 println("plot data...")
 # Initilise counter for output plots
@@ -69,8 +84,6 @@ for n = 1:length(icase)
   for (i, case) in enumerate(plotdata[n])
     # Increase counter for plots and generate plots
     pdf += 1
-    # make_plots.lineplot(output["time"],output[what[n]],label,unit,
-    #                     icase[n],case,"$(lpad(pdf,4,"0")).pdf")
     make_plots.lineplot(output["time"],output[what[n]],label,what[n],unit[n],
                         icase[n],case,"$(lpad(pdf,4,"0")).pdf")
   end
