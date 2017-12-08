@@ -19,25 +19,24 @@ println("initialise...")
 # (Add or modify to include your own directories)
 # Local Mac:
 if isdir("/Applications/bin/data/jl.mod") &&
-  all(x->x!="/Applications/bin/data/jl.mod", LOAD_PATH)
+  all(LOAD_PATH.!="/Applications/bin/data/jl.mod")
   push!(LOAD_PATH,"/Applications/bin/data/jl.mod")
 end
 # earth0:
 if isdir("~/Util/auxdata/jl.mod") &&
-  all(x->x!="~/Util/auxdata/jl.mod", LOAD_PATH)
+  all(LOAD_PATH.!="~/Util/auxdata/jl.mod")
   push!(LOAD_PATH,"~/Util/auxdata/jl.mod")
 end
 
-# Assume either DSMACC main folder or DSMACC/AnalysisTools/DSMACCanalysis
-# as current directory, other wise add/adjust folder path here:
-push!(LOAD_PATH,"./jl.mod"); push!(LOAD_PATH,"AnalysisTools/DSMACCanalysis/jl.mod")
-# push!(LOAD_PATH,".")
+# Add path of internal self-made modules
+push!(LOAD_PATH,joinpath(Base.source_dir(),"jl.mod"))
 
 # Load modules/functions/python libraries
 using PyPlot, DataFrames
 import make_plots
 using groupSPC
 using jlplot
+
 # Define the netCDF file from the first script argument
 for i = 1:2-length(ARGS)  push!(ARGS,"")  end
 
