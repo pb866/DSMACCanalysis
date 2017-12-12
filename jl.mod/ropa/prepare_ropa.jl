@@ -47,7 +47,7 @@ function get_names(specs::Array{Any, 1}, rates::Array{Any, 1})
     # Save species names and reactions for each scenario as String array
     push!(spc_names,string.(names(specs[i]))); push!(rxns,string.(names(rates[i])))
     # Exclude special cases for species
-    for var in ["TIME","LAT","LON","PRESS","TEMP","H2O","M","R","EMISS","DUMMY"]
+    for var in ["TIME","LAT","LON","PRESS","TEMP","H2O","M","R","RO2","EMISS","DUMMY"]
       idx = find(spc_names[i].==var);  deleteat!(spc_names[i],idx)
     end
     # Exclude special cases for reactions
