@@ -2,11 +2,12 @@
 
 
 """
-# Module ropa
+# Module ROPAplot
 
-Analyse sink and source fluxes from DSMACC output.
+Plot sink and source fluxes from ROPA analysis as bar plots for mean values and
+as time-resolved sink and source analysis.
 """
-module ropa
+module ROPAplot
 
 
 ##################
@@ -36,40 +37,37 @@ if isdir(joinpath(Base.source_dir(),"jl.mod/ropa")) &&
   push!(LOAD_PATH,joinpath(Base.source_dir(),"jl.mod/ropa"))
 end
 
-# Load modules/functions/python libraries
-using PyPlot, DataFrames
-using NCload
-using prepare_ropa, FluxAnalysis
+# Import Julia and self-made modules
+using DataFrames#, PyCall, PyPlot
+using ropa_tool#, make_plots
+using plot_ropa
+
+# Import python functions
+# @pyimport matplotlib.backends.backend_pdf as pdf
+
 
 # Define the netCDF files from the first script argument
-for i = 1:1-length(ARGS)  push!(ARGS,"")  end
+for i = 1:2-length(ARGS)  push!(ARGS,"")  end
 
 #––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––#
-
 
 #####################
 ###  MAIN SCRIPT  ###
 #####################
 
-println("load data...")
-# Load DSMACC output
-specs = []; rates = []
-for file in split(ARGS[1])
-  spec, rate = NCload.get_ncdata(file)
-  push!(specs,spec); push!(rates,rate)
-end
+# Perform ROPA analysis on scenarios given in script argument 1
+sources, sinks, concs = ropa(ARGS[1])
+# Retrieve scenario names as list of file base names
+scenarios = String[]
+for s in basename.(split(ARGS[1]))  push!(scenarios,splitext(s)[1])  end
+# Define a list of species to be plotted
+species = ["HO2", "OH", "NO", "NO2", "O3"]
 
-println("analyse reactions...")
-# Get relevant species and reactions for each scenario as array of arrays
-spc, rxn = get_names(specs,rates)
-# Find species/branching ratios of LHS/RHS of reaction
-educt, product = split_rxn(rxn)
+# Define output file name
+if ARGS[2] == ""  ARGS[2] = "fluxes_"*join(scenarios,"_")  end
+fname = ARGS[2]*".pdf"
 
-println("determine fluxes...")
-# Calculate turnovers using net fluxes for equilibria
-flux_data = flux_rates(educt,specs,rates,rxn)
-flux_data = net_flux(educt,product,flux_data)
-# Find sinks and sources for each species
-source, sink = prodloss(spc,educt,product,flux_data)
+# Generate file with plots form species and scenario list
+plot_fluxes(species,scenarios,fname,sources,sinks,concs)
 
-end #module ropa
+end #module ROPAplot

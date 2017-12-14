@@ -32,10 +32,13 @@ end
 push!(LOAD_PATH,joinpath(Base.source_dir(),"jl.mod"))
 
 # Load modules/functions/python libraries
-using PyPlot, DataFrames
+using PyPlot, PyCall, DataFrames
 import make_plots
 using groupSPC
 using jlplot
+
+# Load python function for multiple plots in one pdf
+@pyimport matplotlib.backends.backend_pdf as pdf
 
 # Define the netCDF file from the first script argument
 for i = 1:2-length(ARGS)  push!(ARGS,"")  end
@@ -75,22 +78,23 @@ output["specs"] = add_conc(output["specs"],chrom_class,OCratio_class,size_class,
 #––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––#
 
 println("plot data...")
+# Define output file name
+if ARGS[2] == ""  ARGS[2] = join(label,"_")  end
+pdffile = pdf.PdfPages(ARGS[2]*".pdf")
+
 # Initilise counter for output plots
-pdf = 0
 # Loop over different plot types
 for n = 1:length(icase)
   # Loop over different plots in each plot type
   for (i, case) in enumerate(plotdata[n])
     # Increase counter for plots and generate plots
-    pdf += 1
-    make_plots.lineplot(output["time"],output[what[n]],label,what[n],unit[n],
-                        icase[n],case,"$(lpad(pdf,4,"0")).pdf")
+    fig =make_plots.lineplot(output["time"],output[what[n]],label,what[n],unit[n],
+                        icase[n],case)
+    pdffile[:savefig](fig)
   end
 end
+pdffile[:close]()
 
-# compile subplots to overall pdf
-if ARGS[2] == ""  ARGS[2] = join(label,"_")  end
-make_plots.compile_pdf(".",ARGS[2],ndel=pdf)
 
 println("done.")
 
