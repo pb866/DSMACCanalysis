@@ -61,13 +61,15 @@ sources, sinks, concs = ropa(ARGS[1])
 scenarios = String[]
 for s in basename.(split(ARGS[1]))  push!(scenarios,splitext(s)[1])  end
 # Define a list of species to be plotted
-species = ["HO2", "OH", "NO", "NO2", "O3"]
+species = ["HO2", "OH", "NO", "NO2", "O3", "TOLUENE"]
 
 # Define output file name
 if ARGS[2] == ""  ARGS[2] = "fluxes_"*join(scenarios,"_")  end
 fname = ARGS[2]*".pdf"
 
 # Generate file with plots form species and scenario list
+println("plot fluxes...")
 plot_fluxes(species,scenarios,fname,sources,sinks,concs)
+println("done.")
 
 end #module ROPAplot

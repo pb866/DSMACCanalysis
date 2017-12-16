@@ -1,11 +1,30 @@
 # Don't use __precompile__() with pyimport!
 
 """
+# Module plot_ropa
+
+Plot time-resolved sink and source analysis for a list of species in the given
+scenario(s).
+
+# Functions
+## public
+- plot_fluxes
+- load_plotdata
+
+## private
+- find_SCENidx
+- spc_stats
+- get_Xdata
+- get_Ydata
 """
 module plot_ropa
 
+##################
+###  PREAMBLE  ###
+##################
+
 # Export public functions
-export load_plotdata, plot_fluxes
+export plot_fluxes, load_plotdata
 
 # Import Julia and self-made modules
 using PyCall, PyPlot, DataFrames
@@ -24,7 +43,7 @@ np = pywrap(pyimport("numpy"))
 """
     plot_fluxes(species,scenarios,fname,sources,sinks,concs,;cut_off::Float64=0.05)
 
-From an array with MCM `species` names and a `scenarios` as well as the ropa
+From an array with MCM `species` names and a `scenarios` list as well as the ropa
 analysis data for `sources`, `sinks`, and `concs`, plot the time-resolved sink
 and source fluxes to a pdf named `fname`. An optional `cut_off` (default: 5%)
 can be defined to combine minor fluxes in the plots.
@@ -39,8 +58,24 @@ function plot_fluxes(species,scenarios,fname,sources,sinks,concs;
     # Load plot data from ropa analysis
     modtime, src, snk = load_plotdata(spc,scen,sources,sinks,concs,scenarios;cut_off=0.05)
     # Plot data and save plots
-    fig = plot_flux(modtime, src, snk)
-    pdffile[:savefig](fig)
+    if src==nothing
+      # Set sink fluxes negative
+      snk[1] .*= -1.
+      # Set colour scheme
+      cs, dt = sel_ls(cs="sink",nc=1:length(snk[2]))
+      fig = plot_flux(spc, scen, modtime, snk, cs)
+      pdffile[:savefig](fig)
+      # Restore original sink fluxes
+      snk[1] .*= -1.
+    elseif snk==nothing
+      # Set colour scheme
+      cs, dt = sel_ls(cs="source",nc=1:length(src[2]))
+      fig = plot_flux(spc, scen, modtime, src, cs)
+      pdffile[:savefig](fig)
+    elseif src!=nothing && snk!=nothing
+      fig = plot_prodloss(spc, scen, modtime, src, snk)
+      pdffile[:savefig](fig)
+    end
   end  end
   # Close output pdf
   pdffile[:close]()
@@ -64,11 +99,13 @@ function load_plotdata(spc,chosen_scen,sources,sinks,conc,scen;
   # Generate x and y data for sinks and sources
   modtime = get_Xdata(conc,s)
   idx, fraction = spc_stats(spc,s,sources)
-  Ysrc = get_Ydata(sources,s,idx,fraction,cut_off)
+  if idx != nothing  Ysrc = get_Ydata(sources,s,idx,fraction,cut_off)
+  else               Ysrc = nothing
+  end
   idx, fraction = spc_stats(spc,s,sinks)
-  Ysnk = get_Ydata(sinks,s,idx,fraction,cut_off)
-  # Negatate sink data
-  Ysnk[1] .*= -1.
+  if idx != nothing  Ysnk = get_Ydata(sinks,s,idx,fraction,cut_off)
+  else               Ysnk = nothing
+  end
 
   # Return model time, source and sink data (with labels as tuple)
   return modtime, Ysrc, Ysnk
@@ -118,7 +155,12 @@ function spc_stats(spc,s,flux_data)
   # Get species index
   idx=find(flux_data[s][:,1].==spc)[1]
   # Get total flux
-  tot=mean(sum(flux_data[s][idx,2][:,2]))
+  tot=0.
+  try tot=mean(sum(flux_data[s][idx,2][:,2]))
+  catch
+    idx=nothing; fraction=nothing
+    return idx, fraction
+  end
   # Get fractional contributions
   fraction=mean.(flux_data[s][idx,2][:,2])./tot
 
@@ -161,12 +203,17 @@ function get_Ydata(flux_data,s,idx,fraction,cut_off)
 
   # Find and combine minor fluxes
   excl=find(x->x<cut_off,fraction)
-  rest = sum(flux_data[s][idx,2][excl,2])
+  minor = 0.
+  try   minor = sum(flux_data[s][idx,2][excl,2])  end
   # Find major fluxes
   major = flux_data[s][idx,2][find(x->x≥cut_off,fraction),:]
 
   # Store both fluxes (and their legends)
-  ydata = vcat(major,["minor fluxes" [rest]])
+  if minor != 0.
+    ydata = vcat(major,["minor fluxes" [minor]])
+  else
+    ydata = major
+  end
 
   # Return adjusted fluxes and their legends as a tuple
   return (np.row_stack(tuple(ydata[:,2])),ydata[:,1])
