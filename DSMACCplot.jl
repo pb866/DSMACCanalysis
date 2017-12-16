@@ -19,25 +19,27 @@ println("initialise...")
 # (Add or modify to include your own directories)
 # Local Mac:
 if isdir("/Applications/bin/data/jl.mod") &&
-  all(x->x!="/Applications/bin/data/jl.mod", LOAD_PATH)
+  all(LOAD_PATH.!="/Applications/bin/data/jl.mod")
   push!(LOAD_PATH,"/Applications/bin/data/jl.mod")
 end
 # earth0:
 if isdir("~/Util/auxdata/jl.mod") &&
-  all(x->x!="~/Util/auxdata/jl.mod", LOAD_PATH)
+  all(LOAD_PATH.!="~/Util/auxdata/jl.mod")
   push!(LOAD_PATH,"~/Util/auxdata/jl.mod")
 end
 
-# Assume either DSMACC main folder or DSMACC/AnalysisTools/DSMACCanalysis
-# as current directory, other wise add/adjust folder path here:
-push!(LOAD_PATH,"./jl.mod"); push!(LOAD_PATH,"AnalysisTools/DSMACCanalysis/jl.mod")
-# push!(LOAD_PATH,".")
+# Add path of internal self-made modules
+push!(LOAD_PATH,joinpath(Base.source_dir(),"jl.mod"))
 
 # Load modules/functions/python libraries
 using PyPlot, PyCall, DataFrames
 import make_plots
 using groupSPC
 using jlplot
+
+# Load python function for multiple plots in one pdf
+@pyimport matplotlib.backends.backend_pdf as pdf
+
 # Define the netCDF file from the first script argument
 for i = 1:2-length(ARGS)  push!(ARGS,"")  end
 
@@ -76,23 +78,22 @@ output["specs"] = add_conc(output["specs"],chrom_class,OCratio_class,size_class,
 #––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––#
 
 println("plot data...")
+# Define output file name
+if ARGS[2] == ""  ARGS[2] = join(label,"_")  end
+pdffile = pdf.PdfPages(ARGS[2]*".pdf")
+
 # Initilise counter for output plots
-if ARGS[2] == ""  ARGS[2] = join(label,"_")*".pdf"  end
-@pyimport matplotlib.backends.backend_pdf as pdf
-figures = []
 # Loop over different plot types
 for n = 1:length(icase)
   # Loop over different plots in each plot type
   for (i, case) in enumerate(plotdata[n])
     # Increase counter for plots and generate plots
-    fig = make_plots.lineplot(output["time"],output[what[n]],label,what[n],unit[n],
-                              icase[n],case)
-    push!(figures,fig)
+    fig =make_plots.lineplot(output["time"],output[what[n]],label,what[n],unit[n],
+                        icase[n],case)
+    pdffile[:savefig](fig)
   end
 end
-pdffile = pdf.PdfPages(ARGS[2]) # create pdf file
-[pdffile[:savefig](f) for f in figures] # add figures to file
-pdffile[:close]() # close pdf file
+pdffile[:close]()
 
 
 println("done.")
