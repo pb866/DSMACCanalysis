@@ -49,33 +49,19 @@ and source fluxes to a pdf named `fname`. An optional `cut_off` (default: 5%)
 can be defined to combine minor fluxes in the plots.
 """
 function plot_fluxes(species,scenarios,fname,sources,sinks,concs;
-                     cut_off::Float64=0.05)
+                     llim::Float64=0.05, ulim::Float64=0.7)
   # Initilise pdf output file
   pdffile = pdf.PdfPages(fname)
 
   # Loop over species and scenarios
   for spc in species  for scen in scenarios
     # Load plot data from ropa analysis
-    modtime, src, snk = load_plotdata(spc,scen,sources,sinks,concs,scenarios;cut_off=0.05)
-    # Plot data and save plots
-    if src==nothing
-      # Set sink fluxes negative
-      snk[1] .*= -1.
-      # Set colour scheme
-      cs, dt = sel_ls(cs="sink",nc=1:length(snk[2]))
-      fig = plot_flux(spc, scen, modtime, snk, cs)
-      pdffile[:savefig](fig)
-      # Restore original sink fluxes
-      snk[1] .*= -1.
-    elseif snk==nothing
-      # Set colour scheme
-      cs, dt = sel_ls(cs="source",nc=1:length(src[2]))
-      fig = plot_flux(spc, scen, modtime, src, cs)
-      pdffile[:savefig](fig)
-    elseif src!=nothing && snk!=nothing
-      fig = plot_prodloss(spc, scen, modtime, src, snk)
-      pdffile[:savefig](fig)
-    end
+    modtime, src, snk, src_rev, snk_rev =
+      load_plotdata(spc,scen,sources,sinks,concs,scenarios,llim=llim,ulim=ulim)
+    fig = plot_data(spc,scen,modtime,src,snk)
+    if fig != nothing  pdffile[:savefig](fig)  end
+    fig = plot_data(spc,scen,modtime,src_rev,snk_rev)
+    if fig != nothing  pdffile[:savefig](fig)  end
   end  end
   # Close output pdf
   pdffile[:close]()
@@ -93,22 +79,26 @@ A cut-off (by default 5%) for minor fluxes can be defined. Minor fluxes are grou
 in the plots. Furthermore, the full list with scenario names is needed.
 """
 function load_plotdata(spc,chosen_scen,sources,sinks,conc,scen;
-                       cut_off::Float64=0.05)
+                       llim::Float64=0.05, ulim::Float64=0.7)
   # Get index for current scenario
   s = find_SCENidx(scen,chosen_scen)
   # Generate x and y data for sinks and sources
   modtime = get_Xdata(conc,s)
   idx, fraction = spc_stats(spc,s,sources)
-  if idx != nothing  Ysrc = get_Ydata(sources,s,idx,fraction,cut_off)
-  else               Ysrc = nothing
+  if idx != nothing  Ysrc, Ysrc_rev = get_Ydata(sources,s,idx,fraction,llim,ulim)
+  else
+    Ysrc = ("no fluxes","no fluxes","no fluxes")
+    Ysrc_rev = ("no fluxes","no fluxes","no fluxes")
   end
   idx, fraction = spc_stats(spc,s,sinks)
-  if idx != nothing  Ysnk = get_Ydata(sinks,s,idx,fraction,cut_off)
-  else               Ysnk = nothing
+  if idx != nothing  Ysnk, Ysnk_rev = get_Ydata(sinks,s,idx,fraction,llim,ulim)
+  else
+    Ysnk = ("no fluxes","no fluxes","no fluxes")
+    Ysnk_rev = ("no fluxes","no fluxes","no fluxes")
   end
 
   # Return model time, source and sink data (with labels as tuple)
-  return modtime, Ysrc, Ysnk
+  return modtime, Ysrc, Ysnk, Ysrc_rev, Ysnk_rev
 end
 
 
@@ -199,24 +189,71 @@ From the `flux_data` (sinks or sources), the scenario index `s`, the species ind
 determine and return a tuple with the flux data for plotting (where minor fluxes
 are combined) and their legend titles.
 """
-function get_Ydata(flux_data,s,idx,fraction,cut_off)
+function get_Ydata(flux_data,s,idx,fraction,llim,ulim)
 
-  # Find and combine minor fluxes
-  excl=find(x->x<cut_off,fraction)
-  minor = 0.
-  try   minor = sum(flux_data[s][idx,2][excl,2])  end
-  # Find major fluxes
-  major = flux_data[s][idx,2][find(x->x≥cut_off,fraction),:]
+  # Define fluxes larger than lower limit
+  nmain = find(llim.≤fraction.≤ulim)
+  nmax = find(fraction.>ulim)
+  main  = flux_data[s][idx,2][nmain,:]
+  major = flux_data[s][idx,2][nmax,:]
+  # Assign fluxes as y data
+  ydata = vcat(major,main)
+  # Add accumulated minor fluxes to y data
+  ydata = def_minor(ydata,flux_data[s][idx,2],fraction,llim)
 
-  # Store both fluxes (and their legends)
-  if minor != 0.
-    ydata = vcat(major,["minor fluxes" [minor]])
+  if !isempty(major)
+    # If fluxes above upper limit exist, exclude them and recalculate fractions
+    rev_fluxes = vcat(main,flux_data[s][idx,2][find(fraction.<llim),:])
+    rev_fraction=mean.(rev_fluxes[:,2])./sum(mean.(rev_fluxes[:,2]))
+    # Define main fluxes as y data
+    rev_nmain = find(rev_fraction.≥llim)
+    yrev = rev_fluxes[rev_nmain,:]
+    # Add accumulated minor fluxes to y data
+    yrev = def_minor(yrev,rev_fluxes,rev_fraction,llim)
+    yrev_data = np.row_stack(tuple(yrev[:,2]))
   else
-    ydata = major
+    # Set yref to nothing, if no fluxes exist above upper threshold
+    yrev_data = "no fluxes"; yrev = ["no fluxes"]; major = ["no fluxes"]
   end
 
   # Return adjusted fluxes and their legends as a tuple
-  return (np.row_stack(tuple(ydata[:,2])),ydata[:,1])
+  return (np.row_stack(tuple(ydata[:,2])),ydata[:,1],"no fluxes"), (yrev_data, yrev[:,1], major[:,1])
 end
+
+
+function def_minor(ydata,fluxes,fraction,llim)
+  nmin = find(fraction.<llim)
+  minor = fluxes[nmin,:]
+  # Combine minor fluxes and add to y data (if present)
+  if !isempty(minor)
+    minor = sum(minor[:,2])
+    ydata = vcat(ydata, ["minor fluxes" [minor]])
+  end
+  return ydata
+end
+
+
+function plot_data(spc,scen,modtime,src,snk)
+  # Plot data and save plots
+  if src[1]=="no fluxes" && snk[1]=="no fluxes"
+    fig = nothing
+  elseif src[1]=="no fluxes"
+    # Set sink fluxes negative
+    snk[1] .*= -1.
+    # Set colour scheme
+    cs, dt = sel_ls(cs="sink",nc=1:length(snk[2]))
+    fig = plot_flux(spc, scen, modtime, snk, cs)
+    # Restore original sink fluxes
+    snk[1] .*= -1.
+  elseif snk[1]=="no fluxes"
+    # Set colour scheme
+    cs, dt = sel_ls(cs="source",nc=1:length(src[2]))
+    fig = plot_flux(spc, scen, modtime, src, cs)
+  else
+    fig = plot_prodloss(spc, scen, modtime, src, snk)
+  end
+
+  return fig
+end #function
 
 end #module plot_ropa
