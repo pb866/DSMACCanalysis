@@ -10,9 +10,10 @@ scenario(s).
 ## public
 - plot_fluxes
 - load_plotdata
+- plot_data
+- find_SCENidx
 
 ## private
-- find_SCENidx
 - spc_stats
 - get_Xdata
 - get_Ydata
@@ -24,16 +25,32 @@ module plot_ropa
 ##################
 
 # Export public functions
-export plot_fluxes, load_plotdata
+export plot_fluxes,
+       load_plotdata,
+       plot_data,
+       find_SCENidx
+
+# Define location of external self-made modules
+# (Add or modify to include your own directories)
+# Local Mac:
+if isdir("/Applications/bin/data/jl.mod") &&
+  all(LOAD_PATH.!="/Applications/bin/data/jl.mod")
+  push!(LOAD_PATH,"/Applications/bin/data/jl.mod")
+end
+# earth0:
+if isdir("~/Util/auxdata/jl.mod") &&
+  all(LOAD_PATH.!="~/Util/auxdata/jl.mod")
+  push!(LOAD_PATH,"~/Util/auxdata/jl.mod")
+end
 
 # Import Julia and self-made modules
 using PyCall, PyPlot, DataFrames
 using make_plots
 
 # Import python functions
-# @pyimport numpy as np
+@pyimport numpy as np
 @pyimport matplotlib.backends.backend_pdf as pdf
-np = pywrap(pyimport("numpy"))
+# np = pywrap(pyimport("numpy"))
 
 
 ##########################
@@ -41,12 +58,14 @@ np = pywrap(pyimport("numpy"))
 ##########################
 
 """
-    plot_fluxes(species,scenarios,fname,sources,sinks,concs,;cut_off::Float64=0.05)
+    plot_fluxes(species,scenarios,fname,sources,sinks,concs;
+                llim::Float64=0.05, ulim::Float64=0.7)
 
-From an array with MCM `species` names and a `scenarios` list as well as the ropa
-analysis data for `sources`, `sinks`, and `concs`, plot the time-resolved sink
-and source fluxes to a pdf named `fname`. An optional `cut_off` (default: 5%)
-can be defined to combine minor fluxes in the plots.
+From an array with MCM `species` names and a `scenarios` list as well as the
+ropa analysis data for `sources`, `sinks`, and `concs`, plot the time-resolved
+sink and source fluxes to a pdf named `fname`. An optional lower (`llim`) and
+upper (`ulim`) cut-off parameter (default: 5%/70%) can be defined to combine
+minor fluxes and omit major fluxes in the plots.
 """
 function plot_fluxes(species,scenarios,fname,sources,sinks,concs;
                      llim::Float64=0.05, ulim::Float64=0.7)
@@ -55,9 +74,12 @@ function plot_fluxes(species,scenarios,fname,sources,sinks,concs;
 
   # Loop over species and scenarios
   for spc in species  for scen in scenarios
+    # Get index for current scenario
+    s = find_SCENidx(scenarios,scen)
     # Load plot data from ropa analysis
     modtime, src, snk, src_rev, snk_rev =
-      load_plotdata(spc,scen,sources,sinks,concs,scenarios,llim=llim,ulim=ulim)
+      load_plotdata(spc,s,sources,sinks,concs,scenarios,llim=llim,ulim=ulim)
+    # Generate plots
     fig = plot_data(spc,scen,modtime,src,snk)
     if fig != nothing  pdffile[:savefig](fig)  end
     fig = plot_data(spc,scen,modtime,src_rev,snk_rev)
@@ -65,23 +87,22 @@ function plot_fluxes(species,scenarios,fname,sources,sinks,concs;
   end  end
   # Close output pdf
   pdffile[:close]()
-end
+end #function plot_fluxes
 
 
 """
-    load_plotdata(spc,chosen_scen,sources,sinks,conc,scen;cut_off::Float64=0.05)
+    load_plotdata(spc,s,sources,sinks,conc,scen;llim::Float64=0.05,ulim::Float64=0.7)
 
-From the species MCM name `spc` and the scenario name `chosen_scen` as well as the
+From the species MCM name `spc` and the chosen scenario with index `s` as well as the
 `sources` and `sinks` flux data and the species `conc`entrations prepare plot data
 for a time-resolved sink and source analysis.
 
-A cut-off (by default 5%) for minor fluxes can be defined. Minor fluxes are grouped
-in the plots. Furthermore, the full list with scenario names is needed.
+A lower (`llim`) and (`upper`) cut-off (by default 5%/70%) for minor/major fluxes
+can be defined. Minor fluxes are groupednin the plots, major fluxes are omitted.
+Furthermore, the full list with scenario names (`scen`) is needed.
 """
-function load_plotdata(spc,chosen_scen,sources,sinks,conc,scen;
+function load_plotdata(spc,s,sources,sinks,conc,scen;
                        llim::Float64=0.05, ulim::Float64=0.7)
-  # Get index for current scenario
-  s = find_SCENidx(scen,chosen_scen)
   # Generate x and y data for sinks and sources
   modtime = get_Xdata(conc,s)
   idx, fraction = spc_stats(spc,s,sources)
@@ -99,12 +120,43 @@ function load_plotdata(spc,chosen_scen,sources,sinks,conc,scen;
 
   # Return model time, source and sink data (with labels as tuple)
   return modtime, Ysrc, Ysnk, Ysrc_rev, Ysnk_rev
-end
+end #function load_plotdata
 
 
-###########################
-###  PRIVATE FUNCTIONS  ###
-###########################
+"""
+    plot_data(spc,scen,modtime,src,snk)
+
+Plot sources (`src`) and sinks (`snk`) over model time as a stacked area plot
+for the current species `spc` int the current scenario `scen`.
+"""
+function plot_data(spc,scen,modtime,src,snk)
+  # Plot data and save plots
+  if src[1]=="no fluxes" && snk[1]=="no fluxes"
+    # Ignore plots with no valid data
+    fig = nothing
+  elseif src[1]=="no fluxes"
+    # Plots without sources
+    # Set sink fluxes negative
+    snk[1] .*= -1.
+    # Set colour scheme
+    cs, dt = sel_ls(cs="sink",nc=1:length(snk[2]))
+    fig = plot_flux(spc, scen, modtime, snk, cs)
+    # Restore original sink fluxes
+    snk[1] .*= -1.
+  elseif snk[1]=="no fluxes"
+    # Plots without sinks
+    # Set colour scheme
+    cs, dt = sel_ls(cs="source",nc=1:length(src[2]))
+    fig = plot_flux(spc, scen, modtime, src, cs)
+  else
+    # Plots with sources and sinks
+    fig = plot_prodloss(spc, scen, modtime, src, snk)
+  end
+
+  # Return PyObject with plot data
+  return fig
+end #function plot_data
+
 
 """
     find_SCENidx(scenarios, chosen_scen)
@@ -132,6 +184,11 @@ function find_SCENidx(scenarios, chosen_scen)
 
   return s
 end
+
+
+###########################
+###  PRIVATE FUNCTIONS  ###
+###########################
 
 
 """
@@ -163,7 +220,7 @@ end #function spc_stats
     get_Xdata(conc,s)
 
 From the species concentration array `conc` and the scenario index `s`, calculate
-the model time (x values) for the current plots.
+the model time (x values) for the current plots and return them as array.
 """
 function get_Xdata(conc,s)
   # Initilise
@@ -182,16 +239,18 @@ end
 
 
 """
-    get_Ydata(flux_data,s,idx,fraction,cut_off)
+    get_Ydata(flux_data,s,idx,fraction,llim,ulim)
 
 From the `flux_data` (sinks or sources), the scenario index `s`, the species index
-`idx`, the `fraction`s of each flux, and the `cut_off` parameter for minor fluxes,
-determine and return a tuple with the flux data for plotting (where minor fluxes
-are combined) and their legend titles.
+`idx`, the `fraction`s of each flux, and the cut-off parameters for minor (`llim`)
+and major (`ulim`) fluxes, determine and return a tuple with the flux data for
+plotting (where minor fluxes are combined) and their legend titles and a "no fluxes"
+string as well as a second tuple with the revised plotting data (without major fluxes
+and combined minor fluxes), the legend and a list of the omitted major fluxes.
 """
 function get_Ydata(flux_data,s,idx,fraction,llim,ulim)
 
-  # Define fluxes larger than lower limit
+  # Define large fluxes (main and major)
   nmain = find(llim.≤fraction.≤ulim)
   nmax = find(fraction.>ulim)
   main  = flux_data[s][idx,2][nmain,:]
@@ -221,7 +280,15 @@ function get_Ydata(flux_data,s,idx,fraction,llim,ulim)
 end
 
 
+"""
+    def_minor(ydata,fluxes,fraction,llim)
+
+Append `ydata` with main and major fluxes by combined minor fluxes using the data
+in `fluxes`, the mean `fraction` of each flux and the cut-off `llim` below which
+fluxes are accumulated.
+"""
 function def_minor(ydata,fluxes,fraction,llim)
+  # Find fluxes below lower threshold
   nmin = find(fraction.<llim)
   minor = fluxes[nmin,:]
   # Combine minor fluxes and add to y data (if present)
@@ -229,31 +296,9 @@ function def_minor(ydata,fluxes,fraction,llim)
     minor = sum(minor[:,2])
     ydata = vcat(ydata, ["minor fluxes" [minor]])
   end
+
+  # Return appended y data
   return ydata
 end
-
-
-function plot_data(spc,scen,modtime,src,snk)
-  # Plot data and save plots
-  if src[1]=="no fluxes" && snk[1]=="no fluxes"
-    fig = nothing
-  elseif src[1]=="no fluxes"
-    # Set sink fluxes negative
-    snk[1] .*= -1.
-    # Set colour scheme
-    cs, dt = sel_ls(cs="sink",nc=1:length(snk[2]))
-    fig = plot_flux(spc, scen, modtime, snk, cs)
-    # Restore original sink fluxes
-    snk[1] .*= -1.
-  elseif snk[1]=="no fluxes"
-    # Set colour scheme
-    cs, dt = sel_ls(cs="source",nc=1:length(src[2]))
-    fig = plot_flux(spc, scen, modtime, src, cs)
-  else
-    fig = plot_prodloss(spc, scen, modtime, src, snk)
-  end
-
-  return fig
-end #function
 
 end #module plot_ropa

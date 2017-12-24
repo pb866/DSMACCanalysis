@@ -2,6 +2,9 @@ Scenarios:
 IO/TOLm3.nc IO/TOLm4.nc
 "v3", "v4"
 
+Settings:
+cut off: 0.05, 0.8
+
 Plotting:
 v3, v4: specs/mlc
 OH
@@ -42,5 +45,14 @@ C4MDIAL-->0.5newCYC1+0.5PXYFUONE
 PR1O2HNO3-->0.5newRAD+0.5PRONO3AO+0.5NO2+0.5OH
 TOLUENE+OH-->C6H5CH2O2  TOLUENE+OH-->CRESOL+HO2
 
-#v4: ropa
-#v4: stack
+v3, v4: fluxes
+OH HO2
+O3
+NO NO2
+
+v3, v4: fluxes/mlc
+TOLUENE
+
+Comments:
+v4: ropa
+v4: stack

@@ -14,6 +14,16 @@ module ropa_tool
 
 export ropa
 
+# Find directory of module source code
+cdir=Base.source_dir()
+# Find parent directory
+pdir=dirname(cdir)
+
+# Define location of external self-made modules
+# (Add or modify to include your own directories)if all(LOAD_PATH.!=cdir)  push!(LOAD_PATH,cdir)  end
+if all(LOAD_PATH.!=cdir)  push!(LOAD_PATH,cdir)  end
+if all(LOAD_PATH.!=pdir)  push!(LOAD_PATH,pdir)  end
+
 # Load modules/functions/python libraries
 using DataFrames
 using NCload
@@ -26,13 +36,14 @@ using prepare_ropa, FluxAnalysis
 ###  FUNCTIONS  ###
 ###################
 
-function ropa(scenarios)
-  println("load data...")
+function ropa(scenarios=[]; specs=[], rates=[])
+  println("load ROPA data...")
   # Load DSMACC output
-  specs = []; rates = []
-  for file in split(scenarios)
-    spec, rate = get_ncdata(file)
-    push!(specs,spec); push!(rates,rate)
+  if isempty(specs) || isempty(rates)
+    for file in scenarios
+      spec, rate = get_ncdata(file)
+      push!(specs,spec); push!(rates,rate)
+    end
   end
 
   println("analyse reactions...")

@@ -5,36 +5,54 @@ __precompile__()
 # Module jlplot
 
 Define type of plots and species/reactions to be plotted from an input file.
-Generate arrays with Name of DSMACC netCDF files, scenario names,
+Generate arrays with names of DSMACC netCDF files, scenario names,
 species/reactions to be plotted and further indices needed for the processing
 of the data.
 
 
 # Public functions
 
-- commission_plot,
-- get_scenario,
-- prepare_plots,
+- commission_plot
+- get_scenario
+- get_limits
+- prepare_plots
 - DSMACCoutput
 """
 module jlplot
 
 
-  ##################
-  ###  PREAMBLE  ###
-  ##################
+##################
+###  PREAMBLE  ###
+##################
 
-  # Export public functions
-  export commission_plot,
-         get_scenario,
-         prepare_plots,
-         DSMACCoutput
+# Export public functions
+export commission_plot,
+       get_scenario,
+       get_limits,
+       prepare_plots,
+       DSMACCoutput
 
-  # Loading external and internal self-made modules
-  # Define directory of modules in main script
-  # (absolute or relative paths to location, where main script is called)
-  using fhandle
-  using NCload
+# Find directory of module source code
+cdir=Base.source_dir()
+
+# Loading external and internal self-made modules
+# Define directory of modules in main script
+# (absolute or relative paths to location, where main script is called)
+# Local Mac:
+if isdir("/Applications/bin/data/jl.mod") &&
+  all(LOAD_PATH.!="/Applications/bin/data/jl.mod")
+  push!(LOAD_PATH,"/Applications/bin/data/jl.mod")
+end
+# earth0:
+if isdir("~/Util/auxdata/jl.mod") &&
+  all(LOAD_PATH.!="~/Util/auxdata/jl.mod")
+  push!(LOAD_PATH,"~/Util/auxdata/jl.mod")
+end
+# Current directory
+if all(LOAD_PATH.!=cdir)  push!(LOAD_PATH,cdir)  end
+
+using fhandle
+using NCload
 
 
 ###################
@@ -44,9 +62,10 @@ module jlplot
 """
     commission_plot(ifile::String="plot.inp")
 
-Read input file `ifile` and return arre with lines `commission` as well as
-indices for the beginning of the scenario section `scen`, the beginning and end
-of the plotting section `beg_plt` and `end_plt`.
+Read input file `ifile` and return Array with lines `commission` as well as
+indices for the beginning of the scenario section `scen`, the beginning of the
+settings sections `sett`, and the beginning and end of the plotting section
+`beg_plt` and `end_plt`.
 """
 function commission_plot(ifile::String="plot.inp")
   # Assume either DSMACC main folder or DSMACC/AnalysisTools/DSMACCanalysis
@@ -67,16 +86,22 @@ function commission_plot(ifile::String="plot.inp")
   # Find indices for beginning of scenario definitions
   # and beginning/end of plotting section
   scen = find([contains(line,"Scenarios:") for line in commission])[1]
+  sett = find([contains(line,"Settings:") for line in commission])
   beg_plt = find([contains(line,"Plotting:") for line in commission])[1] + 1
   end_plt = find([contains(line,"Comments:") for line in commission])
   # Correct end of plotting section if not followed by Comments section
-  if  isempty(end_plt) && scen > beg_plt  end_plt = scen - 1
-  elseif isempty(end_plt)  end_plt = length(commission)
-  else  end_plt = end_plt[1] - 1
+  if isempty(sett)  sett = 0
+  else              sett = sett[1]
+  end
+  # Correct end of plotting section if not followed by Comments section
+  if isempty(end_plt)
+    end_plt = length(commission) - 1
+  else
+    end_plt = end_plt[1] - 1
   end
 
   # Return file content and indices
-  return commission, [scen, beg_plt, end_plt]
+  return commission, [scen, sett, beg_plt, end_plt]
 end #function commission_plot
 
 
@@ -84,7 +109,7 @@ end #function commission_plot
     get_scenario(lines,strt)
 
 From `lines` in input file and index `strt` for beginning of the Scenario section,
-retrieve and return arrays `ncfile` and `label` with directory and name of the
+retrieve and return arrays `ncfile` and `label` with the directory and name of the
 DSMACC netCDF files and names for the respective scenarios.
 
 If no scenario names are specified, the netCDF file names without the extension
@@ -127,11 +152,34 @@ end #function get_scenario
 
 
 """
+    get_limits(commission,sett_idx)
+
+From the `lines` in the input plot file and the index for the start of the
+settings section in the lines `sett_idx`, find and return the lower and upper
+cut-off parameters for minor/major fluxes or return the default values of 0.05
+and 0.7, respectively.
+"""
+function get_limits(lines,sett_idx)
+  if sett_idx==0
+    # Set default cut-off parameters
+    llim = 0.05
+    ulim = 0.7
+  elseif lines[sett_idx+1][1:8]=="cut off:"
+    # Or use parameters from the Settings section, if defined
+    llim, ulim = float.(split(lines[sett_idx+1][9:end],","))
+  end
+
+  # Return lower and upper cut-off
+  return llim, ulim
+end
+
+
+"""
     prepare_plots(commission,label)
 
 From the plotting section of the input file `commission` and the `label`s of
 each scenario, retrieve the index `icase` of the scenario to plot, `what` to
-plot (species concentratiosn/reaction rates) and the `plotdata` with the
+plot (species concentrations/reaction rates/fluxes) and the `plotdata` with the
 species/reactions that go into each plot.
 """
 function prepare_plots(commission,label)
@@ -197,7 +245,7 @@ end #function prepare_plots
 Compile data of netCDF files in Julia readable formats.
 
 Data will be stored in a dictionary distinguishing between `"specs"` and `"rates"`,
-each holding an array of dataframes with data from the netCDF files from each scenario
+each holding an array of dataframes with data from the `ncfiles` from each scenario
 compiled in the array and the different species concentrations/reaction rates
 compiled in the dataframes.
 

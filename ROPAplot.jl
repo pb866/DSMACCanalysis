@@ -4,8 +4,7 @@
 """
 # Module ROPAplot
 
-Plot sink and source fluxes from ROPA analysis as bar plots for mean values and
-as time-resolved sink and source analysis.
+Plot sink and source fluxes from ROPA analysis as time-resolved sink and source analysis.
 """
 module ROPAplot
 
@@ -55,8 +54,6 @@ for i = 1:2-length(ARGS)  push!(ARGS,"")  end
 ###  MAIN SCRIPT  ###
 #####################
 
-# Perform ROPA analysis on scenarios given in script argument 1
-sources, sinks, concs = ropa(ARGS[1])
 # Retrieve scenario names as list of file base names
 scenarios = String[]
 for s in basename.(split(ARGS[1]))  push!(scenarios,splitext(s)[1])  end
@@ -67,6 +64,8 @@ species = ["HO2", "OH", "NO", "NO2", "O3", "TOLUENE"]
 if ARGS[2] == ""  ARGS[2] = "fluxes_"*join(scenarios,"_")  end
 fname = ARGS[2]*".pdf"
 
+# Perform ROPA analysis on scenarios given in script argument 1
+sources, sinks, concs = ropa(split(ARGS[1]))
 # Generate file with plots form species and scenario list
 println("plot fluxes...")
 plot_fluxes(species,scenarios,fname,sources,sinks,concs)
