@@ -3,9 +3,19 @@ IO/TOLm3.nc IO/TOLm4.nc
 "v3", "v4"
 
 Settings:
-cut off: 0.05, 0.8
+cut-off: 0.05, 1.0
+cycles: reduce
 
 Plotting:
+v3, v4: fluxes
+O3
+O
+O1D
+NO NO2
+OH
+HO2
+
+Comments:
 v3, v4: specs/mlc
 OH
 HO2

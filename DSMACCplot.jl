@@ -68,8 +68,8 @@ println("load data...")
 commission, fidx = commission_plot(ARGS[1])
 # Get nc file names and scenario names
 ncfiles, label = get_scenario(commission,fidx[1])
-# Set cut-off for flux plots
-llim, ulim = get_limits(commission,fidx[2])
+# Set cut-off for flux plots and switch to calculate inorganic net cycles
+llim, ulim, cycles = get_settings(commission,fidx[2])
 # Read from input file, which plots to generate
 icase, what, unit, plotdata = prepare_plots(commission[fidx[3]:fidx[4]], label)
 # Save DSMACC output using a python script to read nc files and save in Julia format
@@ -80,17 +80,18 @@ output = DSMACCoutput(ncfiles)
 
 if any(what.=="fluxes")
   # Perform ROPA analysis for flux plots
-  sources, sinks, concs = ropa(specs=output["specs"], rates=output["rates"])
+  sources, sinks, concs = ropa(cycles=cycles, specs=output["specs"], rates=output["rates"])
   # Define scenario names for plot titles
   scen_names = String[]
   for s in basename.(ncfiles)  push!(scen_names,splitext(s)[1])  end
   # Combine species for flux plots in single vector
   for i = 1:length(what)
-    if what[i] == "fluxes" && length(plotdata)≥2
-      for j = 2:length(plotdata[i])
-        plotdata[i][1] = vcat(plotdata[i][1],plotdata[i][j])
-      end
-      plotdata[i] = plotdata[i][1]
+    if what[i] == "fluxes"
+      pldata = String[]
+      for j = 1:length(plotdata[i])  for spc in plotdata[i][j]
+        push!(pldata,spc)
+      end  end
+      plotdata[i] = pldata
     end
   end
 end
@@ -127,9 +128,12 @@ for n = 1:length(icase)
       # Output flux plots
       fig = plot_data(spc,scen,modtime,src,snk)
       if fig != nothing  pdffile[:savefig](fig)  end
+      # if fig != nothing  fig[:show]()  end
       # Output revised flux plots, if major fluxes have been removed
       fig = plot_data(spc,scen,modtime,src_rev,snk_rev)
       if fig != nothing  pdffile[:savefig](fig)  end
+      # if fig != nothing  fig[:show]()  end
+      # input("Next picture?")
     end  end
   else
     # Plot line plots of species concentrations and reaction rates for all cases

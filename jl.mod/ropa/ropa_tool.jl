@@ -36,7 +36,17 @@ using prepare_ropa, FluxAnalysis
 ###  FUNCTIONS  ###
 ###################
 
-function ropa(scenarios=[]; specs=[], rates=[])
+"""
+    function ropa(scenarios=[]; specs=[], rates=[], cycles="reduce")
+
+Determine species concentrations `specs` and rate constants `rates`, if not provided
+as function parameters and return the sources and sinks as array for each species
+in each scenario as well as the species concentrations.
+
+Reduce inorganic NOx and Ox cycles to main sources and sinks, if not specified
+otherwise by parameter `cycles`.
+"""
+function ropa(scenarios=[]; specs=[], rates=[], cycles="reduce")
   println("load ROPA data...")
   # Load DSMACC output
   if isempty(specs) || isempty(rates)
@@ -55,7 +65,13 @@ function ropa(scenarios=[]; specs=[], rates=[])
   println("determine fluxes...")
   # Calculate turnovers using net fluxes for equilibria
   flux_data = flux_rates(educt,specs,rates,rxn)
+  # Calculate net fluxes from cycles and equilibria
+  if cycles=="reduce"
+    educt,product,flux_data = net_cycles(educt,product,flux_data)
+  end
   flux_data = net_flux(educt,product,flux_data)
+  # Delete fluxes with negligible turnovers
+  educt,product,flux_data = del_zerofluxes(educt,product,flux_data)
   # Find sinks and sources for each species
   source, sink = prodloss(spc,educt,product,flux_data)
 

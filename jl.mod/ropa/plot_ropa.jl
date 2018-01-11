@@ -103,14 +103,16 @@ Furthermore, the full list with scenario names (`scen`) is needed.
 """
 function load_plotdata(spc,s,sources,sinks,conc,scen;
                        llim::Float64=0.05, ulim::Float64=0.7)
-  # Generate x and y data for sinks and sources
+  # Generate x data for sinks and sources
   modtime = get_Xdata(conc,s)
+  # Generate y data for sources
   idx, fraction = spc_stats(spc,s,sources)
   if idx != nothing  Ysrc, Ysrc_rev = get_Ydata(sources,s,idx,fraction,llim,ulim)
   else
     Ysrc = ("no fluxes","no fluxes","no fluxes")
     Ysrc_rev = ("no fluxes","no fluxes","no fluxes")
   end
+  # Generate y data for sinks
   idx, fraction = spc_stats(spc,s,sinks)
   if idx != nothing  Ysnk, Ysnk_rev = get_Ydata(sinks,s,idx,fraction,llim,ulim)
   else
@@ -183,7 +185,7 @@ function find_SCENidx(scenarios, chosen_scen)
   end
 
   return s
-end
+end #function find_SCENidx
 
 
 ###########################
@@ -235,7 +237,7 @@ function get_Xdata(conc,s)
 
   # Return time array
   return modtime
-end
+end #function get_Xdata
 
 
 """
@@ -253,6 +255,12 @@ function get_Ydata(flux_data,s,idx,fraction,llim,ulim)
   # Define large fluxes (main and major)
   nmain = find(llim.≤fraction.≤ulim)
   nmax = find(fraction.>ulim)
+  # Reassign data to main, if only one flux exists below ulim
+  if length(fraction)==1 && ulim!=1.0
+    nmain = nmax
+    nmax = Int64[]
+  end
+  # Save main and major fluxes in arrays
   main  = flux_data[s][idx,2][nmain,:]
   major = flux_data[s][idx,2][nmax,:]
   # Assign fluxes as y data
@@ -277,7 +285,7 @@ function get_Ydata(flux_data,s,idx,fraction,llim,ulim)
 
   # Return adjusted fluxes and their legends as a tuple
   return (np.row_stack(tuple(ydata[:,2])),ydata[:,1],"no fluxes"), (yrev_data, yrev[:,1], major[:,1])
-end
+end #function get_Ydata
 
 
 """
@@ -299,6 +307,6 @@ function def_minor(ydata,fluxes,fraction,llim)
 
   # Return appended y data
   return ydata
-end
+end #function def_minor
 
 end #module plot_ropa

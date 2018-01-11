@@ -14,7 +14,7 @@ of the data.
 
 - commission_plot
 - get_scenario
-- get_limits
+- get_settings
 - prepare_plots
 - DSMACCoutput
 """
@@ -28,7 +28,7 @@ module jlplot
 # Export public functions
 export commission_plot,
        get_scenario,
-       get_limits,
+       get_settings,
        prepare_plots,
        DSMACCoutput
 
@@ -152,26 +152,36 @@ end #function get_scenario
 
 
 """
-    get_limits(commission,sett_idx)
+    get_settings(lines,sett_idx)
 
 From the `lines` in the input plot file and the index for the start of the
 settings section in the lines `sett_idx`, find and return the lower and upper
-cut-off parameters for minor/major fluxes or return the default values of 0.05
-and 0.7, respectively.
+cut-off parameters for minor/major fluxes and the switch to calculate (or not)
+net cycles of chemical fluxes or return the default values of llim = 0.05,
+ulim = 0.7, and cycles = "reduce".
 """
-function get_limits(lines,sett_idx)
-  if sett_idx==0
-    # Set default cut-off parameters
-    llim = 0.05
-    ulim = 0.7
-  elseif lines[sett_idx+1][1:8]=="cut off:"
-    # Or use parameters from the Settings section, if defined
-    llim, ulim = float.(split(lines[sett_idx+1][9:end],","))
+function get_settings(lines,sett_idx)
+
+  # Set default cut-off parameters
+  llim = 0.05
+  ulim = 0.7
+  cycles = "reduce"
+  # Overwrite parameters with values from the Settings section, if defined
+  if sett_idx!=0
+    i = sett_idx+1
+    while lines[i] != ""
+      if lines[i][1:8]=="cut-off:"
+        llim, ulim = float.(split(lines[i][9:end],","))
+      elseif lines[i][1:7]=="cycles:"
+        cycles = strip(lines[i][8:end])
+      end
+      i += 1
+    end
   end
 
   # Return lower and upper cut-off
-  return llim, ulim
-end
+  return llim, ulim, cycles
+end #function get_settings
 
 
 """
