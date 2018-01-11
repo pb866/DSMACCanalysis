@@ -4,21 +4,30 @@ __precompile__()
 # Module FluxAnalysis
 
 Determine chemical source and sink fluxes for each species in the DSMACC model
-output.
+output. If parameter `cycles` is set to `"reduce"`, calculate net cycles for the
+inorganic NOx and Ox cycles.
 
 # Functions
 ## Public functions
 - flux_rates
+- net_cycles
 - net_flux
+- del_zerofluxes
 - prodloss
 
 ## Private functions
 - get_fluxes
+- init_maincycles
+- calc_maincycles
+- del_negval
+- del_original
 """
 module FluxAnalysis
 
 export flux_rates,
+       net_cycles,
        net_flux,
+       del_zerofluxes,
        prodloss
 
 
@@ -61,7 +70,28 @@ function flux_rates(ed_scen,specs,rates,rxn)
 
   # Return
   return flux_data
-end
+end #function flux_rates
+
+
+"""
+    net_cycles(educt,product,flux_data)
+
+From the `flux_data` and the respective `educt`/`product` lists, determine net
+fluxes for the major inorganic NOx and Ox cycles for O3, O1D, O3P, NO, and NO2
+and adjust the `flux_data` array by adding new net fluxes and deleting the
+individual fluxes. `educt` and `product` arrays are adjusted accordingly.
+"""
+function net_cycles(educt,product,flux_data)
+
+  # Add array entries in flux_data for net fluxes
+  educt,product,flux_data,fluxlen=init_maincycles(educt,product,flux_data)
+  # Calculate net fluxes and delete individual fluxes
+  # and the corresponding educts/products
+  educt,product,flux_data=calc_maincycles(educt,product,flux_data,fluxlen)
+
+  # Return adjusted arrays
+  return educt,product,flux_data
+end #function net_cycles
 
 
 """
@@ -100,7 +130,28 @@ function net_flux(educt,product,flux_data)
 
   # Return revised flux data
   return flux_data
-end
+end #function net_flux
+
+
+"""
+    del_zerofluxes(flux_data)
+
+Delete fluxes in `flux_data` with zero turnover.
+"""
+function del_zerofluxes(educt,product,flux_data)
+  # Loop over scenarios
+  for s = 1:length(flux_data)
+    # Find and keep fluxes with non-negligible turnovers
+    keep=find(sum.(flux_data[s][:,2]).≥1.e-10)
+    flux_data[s] = flux_data[s][keep,:]
+    # Additionally, delete educts and products, if a flux is 0
+    educt[s]     = educt[s][keep]
+    product[s]   = product[s][keep]
+  end
+
+  # Return revised flux_data
+  return educt,product,flux_data
+end #function del_zerofluxes
 
 
 """
@@ -117,7 +168,7 @@ function prodloss(spc_arr,edct,prdct,flux_data)
   sinks   = get_fluxes(edct,prdct,flux_data,spc_arr)
 
   return sources, sinks
-end
+end #function prodloss
 
 
 ###########################
@@ -144,7 +195,7 @@ function get_fluxes(reactant,other_reactant,rates,spc)
     end
     # Loop over reactions in each scenario
     for i = 1:length(rates[s][:,1])
-      # Loop over reactants in each reactions (either LHS or RHS)
+      # Loop over reactants in each reaction (either LHS or RHS)
       for j = 1:length(reactant[s][i][:,2])
         # Find reactant in species array (exclude special cases such as DUMMY)
         try idx = find(spc[s].==reactant[s][i][j,2])[1]
@@ -171,6 +222,168 @@ function get_fluxes(reactant,other_reactant,rates,spc)
 
   # Return an array with sources or sinks depending on reactant for in each scenario
   return fluxes_scen
-end
+end #function get_fluxes
+
+
+"""
+    init_maincycles(educt,product,flux_data)
+
+Add empty entries for net cycles to the `flux_data` array and add the respective
+source and sink species to the `educt` and `product` lists.
+"""
+function init_maincycles(educt,product,flux_data)
+  # Initilise original vector lengths for each scenario
+  fluxlen=[]
+  for s=1:length(flux_data)
+    # Save vector length for current scenario
+    push!(fluxlen,length(flux_data[s][:,1]))
+    # Initilise net fluxes of main inorganic cycles
+    flux_data[s]=vcat(flux_data[s],["O3 net main prod" [zeros(flux_data[s][1,2])]])
+    flux_data[s]=vcat(flux_data[s],["O3 net main loss" [zeros(flux_data[s][1,2])]])
+    flux_data[s]=vcat(flux_data[s],["O net main prod" [zeros(flux_data[s][1,2])]])
+    flux_data[s]=vcat(flux_data[s],["O net main loss" [zeros(flux_data[s][1,2])]])
+    flux_data[s]=vcat(flux_data[s],["O1D net main prod" [zeros(flux_data[s][1,2])]])
+    flux_data[s]=vcat(flux_data[s],["O1D net main loss" [zeros(flux_data[s][1,2])]])
+    flux_data[s]=vcat(flux_data[s],["NO net main prod" [zeros(flux_data[s][1,2])]])
+    flux_data[s]=vcat(flux_data[s],["NO net main loss" [zeros(flux_data[s][1,2])]])
+    flux_data[s]=vcat(flux_data[s],["NO2 net main prod" [zeros(flux_data[s][1,2])]])
+    flux_data[s]=vcat(flux_data[s],["NO2 net main loss" [zeros(flux_data[s][1,2])]])
+
+    # Initilise educt/product arrays for main net cycles
+    push!(educt[s],[1.0 ""]); push!(product[s],[1.0 "O3"])
+    push!(educt[s],[1.0 "O3"]); push!(product[s],[1.0 ""])
+    push!(educt[s],[1.0 ""]); push!(product[s],[1.0 "O"])
+    push!(educt[s],[1.0 "O"]); push!(product[s],[1.0 ""])
+    push!(educt[s],[1.0 ""]); push!(product[s],[1.0 "O1D"])
+    push!(educt[s],[1.0 "O1D"]); push!(product[s],[1.0 ""])
+    push!(educt[s],[1.0 ""]); push!(product[s],[1.0 "NO"])
+    push!(educt[s],[1.0 "NO"]); push!(product[s],[1.0 ""])
+    push!(educt[s],[1.0 ""]); push!(product[s],[1.0 "NO2"])
+    push!(educt[s],[1.0 "NO2"]); push!(product[s],[1.0 ""])
+  end
+
+  # Return ammended arrays for reactants and fluxes and original array lengths
+  return educt,product,flux_data,fluxlen
+end #function init_maincycles
+
+
+"""
+    calc_maincycles(educt,product,flux_data,fluxlen)
+
+Calculate net fluxes for inorganic NOx and Ox species in the flux_data array
+up to the index `fluxlen` (holding the individual fluxes without the net fluxes)
+using the `educt` and `product` lists to identify the individual fluxes and
+equilibria.
+"""
+function calc_maincycles(educt,product,flux_data,fluxlen)
+  # Loop over scenarios
+  for s = 1:length(flux_data)
+    # Loop over fluxes in reverse order (to be able to delete fluxes)
+    # starting at the individual fluxes without the initialised net flux part
+    for i = fluxlen[s]:-1:1
+      # Calculate net fluxes for major ozone, O(1D), O(3P), NO and NO3 sources and sinks
+      if all(educt[s][i].==[1.0 "O3"]) && all(product[s][i].==[1.0 "O1D"])
+        # Add fluxes of reaction O3 -> O(1D) to the respective net cycles
+        flux_data[s][end-9,2]=flux_data[s][end-9,2]-flux_data[s][i,2]
+        flux_data[s][end-8,2]=flux_data[s][end-8,2]+flux_data[s][i,2]
+        flux_data[s][end-5,2]=flux_data[s][end-5,2]+flux_data[s][i,2]
+        flux_data[s][end-4,2]=flux_data[s][end-4,2]-flux_data[s][i,2]
+        # Delete individual fluxes and the respective educt/product entries
+        educt,product,flux_data=del_original(s,i,educt,product,flux_data)
+      elseif all(educt[s][i].==[1.0 "O1D"]) && all(product[s][i].==[1.0 "O"])
+        # Add fluxes of reaction O(1D) -> O(3P) to the respective net cycles
+        flux_data[s][end-7,2]=flux_data[s][end-7,2]+flux_data[s][i,2]
+        flux_data[s][end-6,2]=flux_data[s][end-6,2]-flux_data[s][i,2]
+        flux_data[s][end-5,2]=flux_data[s][end-5,2]-flux_data[s][i,2]
+        flux_data[s][end-4,2]=flux_data[s][end-4,2]+flux_data[s][i,2]
+        # Delete individual fluxes and the respective educt/product entries
+        educt,product,flux_data=del_original(s,i,educt,product,flux_data)
+      elseif all(educt[s][i].==[1.0 "O"]) && all(product[s][i].==[1.0 "O3"])
+        # Add fluxes of reaction O(3P) -> O3 to the respective net cycles
+        flux_data[s][end-9,2]=flux_data[s][end-9,2]+flux_data[s][i,2]
+        flux_data[s][end-8,2]=flux_data[s][end-8,2]-flux_data[s][i,2]
+        flux_data[s][end-7,2]=flux_data[s][end-7,2]-flux_data[s][i,2]
+        flux_data[s][end-6,2]=flux_data[s][end-6,2]+flux_data[s][i,2]
+        # Delete individual fluxes and the respective educt/product entries
+        educt,product,flux_data=del_original(s,i,educt,product,flux_data)
+      elseif all(educt[s][i].==[1.0 "O3"]) && all(product[s][i].==[1.0 "O"])
+        # Add fluxes of reaction O3 -> O(3P) to the respective net cycles
+        flux_data[s][end-9,2]=flux_data[s][end-9,2]-flux_data[s][i,2]
+        flux_data[s][end-8,2]=flux_data[s][end-8,2]+flux_data[s][i,2]
+        flux_data[s][end-7,2]=flux_data[s][end-7,2]+flux_data[s][i,2]
+        flux_data[s][end-6,2]=flux_data[s][end-6,2]-flux_data[s][i,2]
+        # Delete individual fluxes and the respective educt/product entries
+        educt,product,flux_data=del_original(s,i,educt,product,flux_data)
+      elseif all(educt[s][i].==[1.0 "NO2"]) &&
+        all(any(hcat(all(product[s][i].==[1.0 "O"],2),all(product[s][i].==[1.0 "NO"],2)),1))
+        # Add fluxes of reaction NO2 -> NO + O(3P) to the respective net cycles
+        flux_data[s][end-7,2]=flux_data[s][end-7,2]+flux_data[s][i,2]
+        flux_data[s][end-6,2]=flux_data[s][end-6,2]-flux_data[s][i,2]
+        flux_data[s][end-3,2]=flux_data[s][end-3,2]+flux_data[s][i,2]
+        flux_data[s][end-2,2]=flux_data[s][end-2,2]-flux_data[s][i,2]
+        flux_data[s][end-1,2]=flux_data[s][end-1,2]-flux_data[s][i,2]
+        flux_data[s][end,2]=flux_data[s][end,2]+flux_data[s][i,2]
+        # Delete individual fluxes and the respective educt/product entries
+        educt,product,flux_data=del_original(s,i,educt,product,flux_data)
+      elseif all(any(hcat(all(educt[s][i].==[1.0 "O3"],2),all(educt[s][i].==[1.0 "NO"],2)),1)) &&
+        all(product[s][i].==[1.0 "NO2"])
+        # Add fluxes of reaction NO + O3 -> NO2 to the respective net cycles
+        flux_data[s][end-9,2]=flux_data[s][end-9,2]-flux_data[s][i,2]
+        flux_data[s][end-8,2]=flux_data[s][end-8,2]+flux_data[s][i,2]
+        flux_data[s][end-3,2]=flux_data[s][end-3,2]-flux_data[s][i,2]
+        flux_data[s][end-2,2]=flux_data[s][end-2,2]+flux_data[s][i,2]
+        flux_data[s][end-1,2]=flux_data[s][end-1,2]+flux_data[s][i,2]
+        flux_data[s][end,2]=flux_data[s][end,2]-flux_data[s][i,2]
+        # Delete individual fluxes and the respective educt/product entries
+        educt,product,flux_data=del_original(s,i,educt,product,flux_data)
+      end
+    end #i: fluxes
+    # Delete negative values in net cylcles
+    flux_data[s] = del_negval(flux_data[s])
+  end #s: scenarios
+  # Return ammended arrays for reactants and fluxes
+  return educt,product,flux_data
+end #function calc_maincycles
+
+
+"""
+    del_negval(flux_data)
+
+Delete negative values in the `flux_data` of net reactions.
+"""
+function del_negval(flux_data)
+  # Find length of array in current scenario and loop over last 10 entries
+  ln = length(flux_data[:,1])
+  for i = ln-9:ln
+    # Find negative values in net cycles
+    neg = find(flux_data[i,2].<0)
+    # Delete negative values in net cycles
+    flux_data[i,2][neg] = 0.0
+  end
+
+  # Return adjusted flux data array
+  return flux_data
+end #function del_negval
+
+
+"""
+    del_original(s,n,educt,product,flux_data)
+
+Delete individual fluxes with index `n` in `flux_data`, when net fluxes where
+calculated, and the corresponding entries for `educt`s and `product`s for the
+scenario with index `s` and return the adjusted arrays for `flux_data`, `educt`,
+and `product`.
+"""
+function del_original(s,n,educt,product,flux_data)
+
+  # Delete current row in flux_data matrix
+  keep = find(collect(1:length(flux_data[s][:,1])).≠n)
+  flux_data[s] = flux_data[s][keep,:]
+  # Delete current row in reactants matrices
+  deleteat!(educt[s],n); deleteat!(product[s],n)
+
+  # Return adjusted matrices
+  return educt,product,flux_data
+end #function del_original
 
 end #module FluxAnalysis

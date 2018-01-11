@@ -6,6 +6,15 @@
 
 Use DSMACC dictionary with netCDF data to plot species concentrations
 and/or reaction rates for specified species/reactions and netCDF files.
+
+If input file asks for flux plots, perform ROPA analysis and print time-resolved
+sink and source analysis plots.
+
+Group species according to the following properties, which can be outputted in
+stacked area or line plots:
+- Molecule's size
+- Chromophore class
+- O:C ratio
 """
 module DSMACCplot
 
@@ -29,18 +38,23 @@ if isdir("~/Util/auxdata/jl.mod") &&
 end
 
 # Add path of internal self-made modules
-push!(LOAD_PATH,joinpath(Base.source_dir(),"jl.mod"))
+mdir = joinpath(Base.source_dir(),"jl.mod")
+rdir = joinpath(Base.source_dir(),"jl.mod/ropa")
+if all(LOAD_PATH.!=mdir)  push!(LOAD_PATH,mdir)  end
+if all(LOAD_PATH.!=rdir)  push!(LOAD_PATH,rdir)  end
 
 # Load modules/functions/python libraries
 using PyPlot, PyCall, DataFrames
 import make_plots
 using groupSPC
 using jlplot
+using ropa_tool, plot_ropa
 
 # Load python function for multiple plots in one pdf
 @pyimport matplotlib.backends.backend_pdf as pdf
 
-# Define the netCDF file from the first script argument
+# Define the netCDF file(s) from the first script argument
+# For several files, use list of whitespace separated files wrapped in double quotes
 for i = 1:2-length(ARGS)  push!(ARGS,"")  end
 
 #––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––#
@@ -54,14 +68,33 @@ println("load data...")
 commission, fidx = commission_plot(ARGS[1])
 # Get nc file names and scenario names
 ncfiles, label = get_scenario(commission,fidx[1])
+# Set cut-off for flux plots and switch to calculate inorganic net cycles
+llim, ulim, cycles = get_settings(commission,fidx[2])
 # Read from input file, which plots to generate
-icase, what, unit, plotdata = prepare_plots(commission[fidx[2]:fidx[3]], label)
-# Save DSMACC output using a python script
-# to read nc files and save in Julia format
+icase, what, unit, plotdata = prepare_plots(commission[fidx[3]:fidx[4]], label)
+# Save DSMACC output using a python script to read nc files and save in Julia format
 output = DSMACCoutput(ncfiles)
 # Data is store in a dictionary distinguishing between "specs" and "rates"
 # In each dictionary entry is is an array for each scenario (nc file)
 # with dataframes for the respectives species concentrations or reaction rates
+
+if any(what.=="fluxes")
+  # Perform ROPA analysis for flux plots
+  sources, sinks, concs = ropa(cycles=cycles, specs=output["specs"], rates=output["rates"])
+  # Define scenario names for plot titles
+  scen_names = String[]
+  for s in basename.(ncfiles)  push!(scen_names,splitext(s)[1])  end
+  # Combine species for flux plots in single vector
+  for i = 1:length(what)
+    if what[i] == "fluxes"
+      pldata = String[]
+      for j = 1:length(plotdata[i])  for spc in plotdata[i][j]
+        push!(pldata,spc)
+      end  end
+      plotdata[i] = pldata
+    end
+  end
+end
 
 #––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––#
 
@@ -82,17 +115,36 @@ println("plot data...")
 if ARGS[2] == ""  ARGS[2] = join(label,"_")  end
 pdffile = pdf.PdfPages(ARGS[2]*".pdf")
 
-# Initilise counter for output plots
 # Loop over different plot types
 for n = 1:length(icase)
-  # Loop over different plots in each plot type
-  for (i, case) in enumerate(plotdata[n])
-    # Increase counter for plots and generate plots
-    fig =make_plots.lineplot(output["time"],output[what[n]],label,what[n],unit[n],
-                        icase[n],case)
-    pdffile[:savefig](fig)
+  if what[n]=="fluxes"
+    # Loop over species and scenarios for flux plots
+    for spc in plotdata[n]  for scen in scen_names
+      # Get index for current scenario
+      s = find_SCENidx(scen_names,scen)
+      # Load plot data from ropa analysis
+      modtime, src, snk, src_rev, snk_rev =
+        load_plotdata(spc,s,sources,sinks,concs,scen_names,llim=llim,ulim=ulim)
+      # Output flux plots
+      fig = plot_data(spc,scen,modtime,src,snk)
+      if fig != nothing  pdffile[:savefig](fig)  end
+      # if fig != nothing  fig[:show]()  end
+      # Output revised flux plots, if major fluxes have been removed
+      fig = plot_data(spc,scen,modtime,src_rev,snk_rev)
+      if fig != nothing  pdffile[:savefig](fig)  end
+      # if fig != nothing  fig[:show]()  end
+      # input("Next picture?")
+    end  end
+  else
+    # Plot line plots of species concentrations and reaction rates for all cases
+    for case in plotdata[n]
+      fig = make_plots.lineplot(output["time"],output[what[n]],label,what[n],unit[n],
+                                icase[n],case)
+      pdffile[:savefig](fig)
+    end
   end
 end
+# Close multipage pdf file
 pdffile[:close]()
 
 

@@ -31,6 +31,16 @@ end
 # Loading Julia and self-made modules
 # Define directories of self-made modules in main script
 # (absolute or relative paths to location, where main script is called)
+# Local Mac:
+if isdir("/Applications/bin/data/jl.mod") &&
+  all(LOAD_PATH.!="/Applications/bin/data/jl.mod")
+  push!(LOAD_PATH,"/Applications/bin/data/jl.mod")
+end
+# earth0:
+if isdir("~/Util/auxdata/jl.mod") &&
+  all(LOAD_PATH.!="~/Util/auxdata/jl.mod")
+  push!(LOAD_PATH,"~/Util/auxdata/jl.mod")
+end
 using PyCall, DataFrames
 using fhandle: test_file
 

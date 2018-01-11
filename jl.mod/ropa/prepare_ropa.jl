@@ -17,14 +17,14 @@ and sources for each species in each scenario.
 """
 module prepare_ropa
 
-  ##################
-  ###  PREAMBLE  ###
-  ##################
+##################
+###  PREAMBLE  ###
+##################
 
-  export get_names,
-         split_rxn
+export get_names,
+       split_rxn
 
-  using DataFrames
+using DataFrames
 
 
 ##########################
