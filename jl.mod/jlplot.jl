@@ -17,6 +17,7 @@ of the data.
 - get_settings
 - prepare_plots
 - DSMACCoutput
+- get_stackdata
 """
 module jlplot
 
@@ -30,7 +31,8 @@ export commission_plot,
        get_scenario,
        get_settings,
        prepare_plots,
-       DSMACCoutput
+       DSMACCoutput,
+       get_stackdata
 
 # Find directory of module source code
 cdir=Base.source_dir()
@@ -53,6 +55,7 @@ if all(LOAD_PATH.!=cdir)  push!(LOAD_PATH,cdir)  end
 
 using fhandle
 using NCload
+using DataFrames
 
 
 ###################
@@ -290,5 +293,47 @@ function DSMACCoutput(ncfiles)
   # Return dictionry with model time, and concentrations/rates of all scenarios
   return data = Dict("time"=>time, "specs"=>spec, "rates"=>rate)
 end #function DSMACCoutput
+
+
+"""
+    get_stackdata(spc_list,case,ydata,unit)
+
+Plot the concentrations of the species in `spc_list` for the current `case` using
+the `ydata` in the specified `unit` and return y data in the correct unit for the
+boundaries and the areas in the graph.
+"""
+function get_stackdata(spc_list,case,ydata,unit)
+  # Initialise output arrays
+  ystack = DataArray[]; ylines = DataArray[]
+  # Define areas for stack plot
+  for spc in spc_list
+    push!(ystack,ydata[case][Symbol(spc)])
+  end
+  # Define boundary lines for stack plot
+  for i = 1:length(ystack)
+    push!(ylines,sum(ystack[1:i]))
+  end
+
+  # Perform unit conversions
+  if unit=="ppm"
+    for l = 1:length(ylines)
+      ylines[l] .*= 1.e6./ydata[case][:M]
+      ystack[l] .*= 1.e6./ydata[case][:M]
+    end
+  elseif unit=="ppb"
+    for l = 1:length(ylines)
+      ylines[l] .*= 1.e9./ydata[case][:M]
+      ystack[l] .*= 1.e9./ydata[case][:M]
+    end
+  elseif unit=="ppt"
+    for l = 1:length(ylines)
+      ylines[l] .*= 1.e12./ydata[case][:M]
+      ystack[l] .*= 1.e12./ydata[case][:M]
+    end
+  end
+
+  # Return boundaries and areas to be plotted over time
+  return ylines, ystack
+end
 
 end #module jlplot
