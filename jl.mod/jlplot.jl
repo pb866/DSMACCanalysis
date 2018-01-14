@@ -58,9 +58,9 @@ using NCload
 using DataFrames
 
 
-###################
-###  FUNCTIONS  ###
-###################
+##########################
+###  PUBLIC FUNCTIONS  ###
+##########################
 
 """
     commission_plot(ifile::String="plot.inp")
@@ -88,23 +88,30 @@ function commission_plot(ifile::String="plot.inp")
 
   # Find indices for beginning of scenario definitions
   # and beginning/end of plotting section
-  scen = find([contains(line,"Scenarios:") for line in commission])[1]
+  scen = find([contains(line,"Scenarios:") for line in commission])[1] + 1
   sett = find([contains(line,"Settings:") for line in commission])
   beg_plt = find([contains(line,"Plotting:") for line in commission])[1] + 1
   end_plt = find([contains(line,"Comments:") for line in commission])
   # Correct end of plotting section if not followed by Comments section
   if isempty(sett)  sett = 0
-  else              sett = sett[1]
+  else              sett = sett[1] + 1
   end
   # Correct end of plotting section if not followed by Comments section
   if isempty(end_plt)
-    end_plt = length(commission) - 1
+    end_plt = length(commission)
   else
     end_plt = end_plt[1] - 1
+    commission = commission[1:end_plt]
   end
+  # Compile indices in an array
+  fidx = [scen, sett, beg_plt, end_plt]
+
+  # Remove blank lines (whitespaces allowed) between section headings
+  # and first content line
+  commission, fidx = rm_blanklines(commission,fidx)
 
   # Return file content and indices
-  return commission, [scen, sett, beg_plt, end_plt]
+  return commission, fidx
 end #function commission_plot
 
 
@@ -121,18 +128,18 @@ will be used.
 function get_scenario(lines,strt)
 
   # Get nc file names
-  ncfile = split(lines[strt+1])
+  ncfile = split(lines[strt])
 
   # Get scenario names
   label = String[]
-  if lines[strt+2]==""
+  if lines[strt+1]==""
     # Get scenario names from file names, if no labels are given in input file
     for scen in ncfile  push!(label,basename(splitext(scen)[1]))  end
   else
     # Read scenario names from file (labels must be wrapped in double quotes)
     s = getfield.(collect(eachmatch(r"\"","\"v3\", \"v4\"")), [:offset])
     for i = 1:2:length(ncfile)*2
-      push!(label,lines[strt+2][s[i]+1:s[i+1]-1])
+      push!(label,lines[strt+1][s[i]+1:s[i+1]-1])
     end
   end
 
@@ -171,7 +178,7 @@ function get_settings(lines,sett_idx)
   cycles = "reduce"
   # Overwrite parameters with values from the Settings section, if defined
   if sett_idx!=0
-    i = sett_idx+1
+    i = sett_idx
     while lines[i] != ""
       if lines[i][1:8]=="cut-off:"
         llim, ulim = float.(split(lines[i][9:end],","))
@@ -243,6 +250,8 @@ function prepare_plots(commission,label)
     else
       # Save array with species/reactions to be plotted to array plotdata
       # when reading general data lines
+      # Allow commas, semicolons or whitespace as separator
+      line = replace(line,","," "); line = replace(line,";"," ")
       push!(pdata,strip.(split(line)))
     end
   end
@@ -335,5 +344,34 @@ function get_stackdata(spc_list,case,ydata,unit)
   # Return boundaries and areas to be plotted over time
   return ylines, ystack
 end
+
+
+###########################
+###  PRIVATE FUNCTIONS  ###
+###########################
+
+"""
+    rm_blanklines(lines,idx)
+
+Starting at index `idx` in the string array `lines` remove all blank lines
+until the first line with non-whitespace characters is found.
+"""
+function rm_blanklines(lines,idx)
+  # Loop over different sections
+  for i = length(idx)-1:-1:1
+    # Skip for missing 2nd section
+    if idx[i] == 0  continue  end
+    # Delete leading blank lines until first line with content is found
+    while strip(lines[idx[i]])==""
+      deleteat!(lines,idx[i])
+      idx[i+1:end] -= 1
+    end
+  end
+  # Revert index correction for missing second section
+  idx[2] = max(0,idx[2])
+
+  # Return adjusted array with lines
+  return lines, idx
+end #function rm_blanklines
 
 end #module jlplot
