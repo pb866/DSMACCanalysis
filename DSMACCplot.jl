@@ -81,9 +81,6 @@ output = DSMACCoutput(ncfiles)
 if any(what.=="fluxes")
   # Perform ROPA analysis for flux plots
   sources, sinks, concs = ropa(cycles=cycles, specs=output["specs"], rates=output["rates"])
-  # Define scenario names for plot titles
-  scen_names = String[]
-  for s in basename.(ncfiles)  push!(scen_names,splitext(s)[1])  end
   # Combine species for flux plots in single vector
   for i = 1:length(what)
     if what[i] == "fluxes"
@@ -119,27 +116,35 @@ pdffile = pdf.PdfPages(ARGS[2]*".pdf")
 for n = 1:length(icase)
   if what[n]=="fluxes"
     # Loop over species and scenarios for flux plots
-    for spc in plotdata[n]  for scen in scen_names
-      # Get index for current scenario
-      s = find_SCENidx(scen_names,scen)
+    for spc in plotdata[n]  for case in icase[n]
       # Load plot data from ropa analysis
       modtime, src, snk, src_rev, snk_rev =
-        load_plotdata(spc,s,sources,sinks,concs,scen_names,llim=llim,ulim=ulim)
+        load_plotdata(spc,case,sources,sinks,concs,label,llim=llim,ulim=ulim)
       # Output flux plots
-      fig = plot_data(spc,scen,modtime,src,snk)
+      fig = plot_data(spc,label[case],modtime,src,snk)
       if fig != nothing  pdffile[:savefig](fig)  end
       # if fig != nothing  fig[:show]()  end
       # Output revised flux plots, if major fluxes have been removed
-      fig = plot_data(spc,scen,modtime,src_rev,snk_rev)
+      fig = plot_data(spc,label[case],modtime,src_rev,snk_rev)
       if fig != nothing  pdffile[:savefig](fig)  end
       # if fig != nothing  fig[:show]()  end
       # input("Next picture?")
     end  end
+  elseif what[n]=="stack"
+    colstyle = ["source","sink"]
+    # Plot stack plots of species concentrations for all cases
+    for spc in plotdata[n]  for i = 1:length(icase[n])
+      ylines, ystack = get_stackdata(spc,icase[n][i],output["specs"],unit[n])
+      lt = make_plots.sel_ls(cs=colstyle[i], nc=1:length(ylines), nt=icase[n][i])
+      fig = make_plots.plot_stack(output["time"],ylines,ystack,label[icase[n][i]],
+                                  spc,unit[n],lt)
+      pdffile[:savefig](fig)
+    end  end
   else
     # Plot line plots of species concentrations and reaction rates for all cases
     for case in plotdata[n]
-      fig = make_plots.lineplot(output["time"],output[what[n]],label,what[n],unit[n],
-                                icase[n],case)
+      fig = make_plots.lineplot(output["time"],output[what[n]],label,
+                                what[n],unit[n],icase[n],case)
       pdffile[:savefig](fig)
     end
   end
