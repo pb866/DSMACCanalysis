@@ -73,8 +73,8 @@ settings sections `sett`, and the beginning and end of the plotting section
 function commission_plot(ifile::String="plot.inp")
   # Assume either DSMACC main folder or DSMACC/AnalysisTools/DSMACCanalysis
   # as current directory, other wise add/adjust folder path here:
-  if splitdir(pwd())[2] == "DSMACCanalysis"  def_dir = "../"
-  else def_dir = "./AnalysisTools"
+  if splitdir(pwd())[2] == "DSMACCanalysis"  def_dir = "."
+  else def_dir = "./AnalysisTools/DSMACCanalysis"
   end
   # Read and store lines from input file
   commission = rdinp(ifile, default_dir=def_dir)
@@ -128,6 +128,7 @@ will be used.
 function get_scenario(lines,strt)
 
   # Get nc file names
+  lines[strt] = replace(lines[strt],r",|;"," ") # allow other separators than spaces
   ncfile = split(lines[strt])
 
   # Get scenario names
@@ -137,7 +138,11 @@ function get_scenario(lines,strt)
     for scen in ncfile  push!(label,basename(splitext(scen)[1]))  end
   else
     # Read scenario names from file (labels must be wrapped in double quotes)
-    s = getfield.(collect(eachmatch(r"\"","\"v3\", \"v4\"")), [:offset])
+    s = Int64[]; si = 1
+    for i = 1:length(ncfile)*2
+      push!(s,searchindex(lines[strt+1],"\"",si))
+      si = s[end] + 1
+    end
     for i = 1:2:length(ncfile)*2
       push!(label,lines[strt+1][s[i]+1:s[i+1]-1])
     end
@@ -181,7 +186,8 @@ function get_settings(lines,sett_idx)
     i = sett_idx
     while lines[i] != ""
       if lines[i][1:8]=="cut-off:"
-        llim, ulim = float.(split(lines[i][9:end],","))
+        lines[i] = replace(lines[i],r",|;"," ") # allow other separators than spaces
+        llim, ulim = float.(split(lines[i][9:end]))
       elseif lines[i][1:7]=="cycles:"
         cycles = strip(lines[i][8:end])
       end
@@ -239,7 +245,8 @@ function prepare_plots(commission,label)
       # Look for the scenarios to plot before the colon
       # Read scenario labels
       idx = Int64[]
-      lab = strip.(split(line[1:icol-1],','))
+      line = replace(line,r",|;"," ") # allow other separators than spaces
+      lab = split(line[1:icol-1])
       # Get indices of each scenario
       for l in lab
         ic = find(s==l for s in label)[1]
@@ -251,7 +258,7 @@ function prepare_plots(commission,label)
       # Save array with species/reactions to be plotted to array plotdata
       # when reading general data lines
       # Allow commas, semicolons or whitespace as separator
-      line = replace(line,","," "); line = replace(line,";"," ")
+      line = replace(line,r",|;"," ")
       push!(pdata,strip.(split(line)))
     end
   end
@@ -286,6 +293,8 @@ function DSMACCoutput(ncfiles)
   # separately for species concentrations and reaction rates
   spec = []; rate = []
   for ncfile in ncfiles
+    # Assign default path, if no path is specified for the nc files
+    if dirname(ncfile)==""  ncfile = normpath(joinpath(def_dir,ncfile))  end
     # Read species concentrations/reaction rates of current nc file
     spc, rat = get_ncdata(ncfile)
     # Save concentrations/rates in array with all scenarios

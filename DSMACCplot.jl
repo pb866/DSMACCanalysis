@@ -97,7 +97,8 @@ end
 
 println("analyse data...")
 # Load database with different species names
-spcDB = readDB("IO/MCMv331species.db")
+dbfile = normpath(joinpath(Base.source_dir(),"DATA/MCMv331species.db"))
+spcDB = readDB(dbfile)
 # Translate species names from MCM to GECKO-A
 gspc = translateNMVOC(output["specs"],spcDB)
 # Group species by properties
