@@ -22,7 +22,7 @@ module NCload
 # Export public functions
 export get_ncdata
 
-# Assume either DSMACC main folder or DSMACC/AnalysisTools/DSMACCplot
+# Assume either DSMACC main folder or DSMACC/AnalysisTools/DSMACCanalysis
 # as current directory, other wise add/adjust folder path here:
 if splitdir(pwd())[2] == "DSMACCplot"  def_dir = "../../save/results"
 else def_dir = "./save/results"
@@ -60,7 +60,8 @@ function get_ncdata(ncfile::AbstractString)
   # Check existance of file
   ncfile = test_file(ncfile,default_dir=def_dir)
   # Define path of python library and call it to read netCDF data
-  unshift!(PyVector(pyimport("sys")["path"]), "py.lib")
+  unshift!(PyVector(pyimport("sys")["path"]),
+    joinpath(Base.source_dir(),"py.lib"))
   @pyimport ncdata
 
   # Read netCDF data from file

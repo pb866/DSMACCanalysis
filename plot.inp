@@ -1,0 +1,49 @@
+Scenarios: # Specify netCDF files and scenario labels
+DATA/TOLm3.nc DATA/TOLm4.nc
+"MCM3" "MCM4"
+
+# Specify cut-off for minor/major reactions
+# and net fluxes for inorganic Ox/NOx cycles
+Settings:
+cut-off: 0.05, 1.0
+cycles: reduce
+
+Plotting: # Specify plots for pdf
+
+# Source and sink fluxes from ROPA analysis
+MCM3, MCM4: fluxes
+OH
+
+# Stacked area plots of lumped concentrations
+MCM3 MCM4: stack
+Ald Ket DiCar Kete Nitro DiNitro Nit DiNit PNit DiPNit PAN ROOH DiROOH PAA SCI Poly NoChr Rad New
+
+#Species concentrations
+MCM3, MCM4: fluxes
+O3
+NO NO2
+OH
+HO2
+
+MCM3, MCM4: specs/ppb
+TOLUENE
+
+MCM3, MCM4: specs/ppt
+MALDIAL
+C5DICARB
+
+# Reaction rates
+MCM4: rates
+C4MDIAL-->0.5newCYC1+0.5PXYFUONE
+PR1O2HNO3-->0.5newRAD+0.5PRONO3AO+0.5NO2+0.5OH
+TOLUENE+OH-->C6H5CH2O2  TOLUENE+OH-->CRESOL+HO2
+
+Comments: # Any additional comments here
+
+Above script shows example plots for a numerical experiment oxidising
+10ppb of TOLUENE using 40ppb of ozone and 10ppb of NO.
+
+Further script developments:
+• ropa (bar plot of mean sources/sinks from ropa analysis)
+• Unit conversions for flux plots to ppm/h, ppb/h, and ppt/h
+• Grey shades for night-time hours (needs calculation of sza)
