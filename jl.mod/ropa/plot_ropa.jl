@@ -38,9 +38,9 @@ if isdir("/Applications/bin/data/jl.mod") &&
   push!(LOAD_PATH,"/Applications/bin/data/jl.mod")
 end
 # earth0:
-if isdir("~/Util/auxdata/jl.mod") &&
-  all(LOAD_PATH.!="~/Util/auxdata/jl.mod")
-  push!(LOAD_PATH,"~/Util/auxdata/jl.mod")
+if isdir(joinpath(homedir(),"Util/auxdata/jl.mod")) &&
+  all(LOAD_PATH.!=joinpath(homedir(),"Util/auxdata/jl.mod"))
+  push!(LOAD_PATH,joinpath(homedir(),"Util/auxdata/jl.mod"))
 end
 
 # Import Julia and self-made modules
