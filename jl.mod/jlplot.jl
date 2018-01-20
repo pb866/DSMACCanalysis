@@ -46,9 +46,9 @@ if isdir("/Applications/bin/data/jl.mod") &&
   push!(LOAD_PATH,"/Applications/bin/data/jl.mod")
 end
 # earth0:
-if isdir("~/Util/auxdata/jl.mod") &&
-  all(LOAD_PATH.!="~/Util/auxdata/jl.mod")
-  push!(LOAD_PATH,"~/Util/auxdata/jl.mod")
+if isdir(joinpath(homedir(),"Util/auxdata/jl.mod")) &&
+  all(LOAD_PATH.!=joinpath(homedir(),"Util/auxdata/jl.mod"))
+  push!(LOAD_PATH,joinpath(homedir(),"Util/auxdata/jl.mod"))
 end
 # Current directory
 if all(LOAD_PATH.!=cdir)  push!(LOAD_PATH,cdir)  end
@@ -262,6 +262,8 @@ function prepare_plots(commission,label)
       push!(pdata,strip.(split(line)))
     end
   end
+
+  if commission[end] != ""  push!(plotdata,pdata)  end
 
   # Return final arrays
   return icase, what, unit, plotdata
