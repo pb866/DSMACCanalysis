@@ -376,6 +376,13 @@ It is optional and can be started by the caption `Comments:`.
 Version history
 ===============
 
+Version 0.6.1
+-------------
+
+- Bugfix: Plotting previously omitted last line of species in the last plot type
+  when Comments section is missing
+- Bugfix: Correcting paths for module auxdata to be recognised on earth0
+
 Version 0.6
 -----------
 
