@@ -35,7 +35,8 @@ export commission_plot,
        get_settings,
        prepare_plots,
        DSMACCoutput,
-       get_stackdata
+       get_stackdata,
+       def_night
 
 # Find directory of module source code
 cdir=Base.source_dir()
@@ -57,6 +58,7 @@ end
 if all(LOAD_PATH.!=cdir)  push!(LOAD_PATH,cdir)  end
 
 using fhandle
+using make_plots: night_shade
 using NCload
 using DataFrames
 
@@ -183,6 +185,7 @@ llim = 0.05, ulim = 0.7, cycles = "reduce", and no night-time shading.
 function get_settings(lines,sett_idx)
 
   # Set default cut-off parameters
+  mcm = "v3.3.1"
   llim = 0.05
   ulim = 0.7
   cycles = "reduce"
@@ -191,7 +194,9 @@ function get_settings(lines,sett_idx)
   if sett_idx!=0
     i = sett_idx
     while lines[i] != ""
-      if lines[i][1:8]=="cut-off:"
+      if lines[i][1:4] == "MCM:"
+        mcm = strip(lines[i][5:end])
+      elseif lines[i][1:8]=="cut-off:"
         lines[i] = replace(lines[i],r",|;"," ") # allow other separators than spaces
         llim, ulim = float.(split(lines[i][9:end]))
       elseif lines[i][1:7]=="cycles:"
@@ -205,7 +210,7 @@ function get_settings(lines,sett_idx)
   end
 
   # Return lower and upper cut-off
-  return [llim, ulim], cycles, [nightcol, ntrans]
+  return [llim, ulim], cycles, [nightcol, ntrans], mcm
 end #function get_settings
 
 
@@ -318,6 +323,41 @@ function get_stackdata(spc_list,case,ydata,unit)
 
   # Return boundaries and areas to be plotted over time
   return ylines, ystack
+end
+
+
+"""
+    def_night(rates, ntrans)
+
+From the array `rates` with DataFrames of all scenarios holding the reaction rates,
+return a n×2 matrix indices for the model times at the beginning/end of night for
+all scenarios. If the transparency value for night-time shading `ntrans` is set
+to 0 in the settings, skip the routine and return an empty array.
+"""
+function def_night(rates, ntrans)
+  # Initilise array
+  night = Any[]
+  # Skip, if night-time shading is switched off in settings
+  if ntrans != 0.0
+    # Loop over scenarios
+    for (i, scen) in enumerate(rates)
+      # Get indices for times of sunsets/sunrises
+      nght = Matrix{Int64}(0,2)
+      try nght = night_shade(scen[Symbol("NO2-->O+NO")])
+      catch
+        try nght = night_shade(scen[Symbol("NO2-->NO+O")])
+        catch
+          print("J(NO2) not found in rates. ")
+          println("Night-time shading omitted in Scenario $i.")
+        end
+      end
+      # Save starts/ends of all nights for each scenario
+      push!(night, nght)
+    end
+  end
+
+  # Return array with bounderies of all nights in all scenarios
+  return night
 end
 
 

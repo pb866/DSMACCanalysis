@@ -69,8 +69,9 @@ println("load data...")
 commission, fidx = commission_plot(ARGS[1])
 # Get nc file names and scenario names
 ncfiles, label = get_scenario(commission,fidx[1])
-# Set cut-off for flux plots and switch to calculate inorganic net cycles
-lims, cycles, pltnight = get_settings(commission,fidx[2])
+# Set cut-off for flux plots, switch to calculate inorganic net cycles,
+# switch for night-time shading in plots and MCM version used in DSMACC
+lims, cycles, pltnight, mcm = get_settings(commission,fidx[2])
 # Read from input file, which plots to generate
 icase, what, unit, plotdata = prepare_plots(commission[fidx[3]:fidx[4]], label)
 # Save DSMACC output using a python script to read nc files and save in Julia format
@@ -80,7 +81,7 @@ specs, rates = DSMACCoutput(ncfiles)
 # with dataframes for the respectives species concentrations or reaction rates
 
 # Add sza to specs and rates dataframes
-specs, rates = addSZA(specs, rates)
+# specs, rates = addSZA(specs, rates)
 
 if any(what.=="fluxes")
   # Perform ROPA analysis for flux plots
@@ -101,12 +102,12 @@ end
 
 println("analyse data...")
 # Load database with different species names
-dbfile = normpath(joinpath(Base.source_dir(),"DATA/MCMv331species.db"))
+dbfile = normpath(joinpath(Base.source_dir(),"DATA/MCMv331species_corrected.db"))
 spcDB = readDB(dbfile)
 # Translate species names from MCM to GECKO-A
-gspc = translateNMVOC(specs,spcDB)
+gspc = translateNMVOC(specs,spcDB,MCM=mcm)
 # Group species by properties
-CC, OC, CN, chrom_class, OCratio_class, size_class = group_specs(gspc,spcDB)
+CC, OC, CN, chrom_class, OCratio_class, size_class = group_specs(gspc,spcDB,MCM=mcm)
 # Add new classes to dataframes
 specs = add_conc(specs,chrom_class,OCratio_class,size_class,CC,OC,CN)
 
@@ -116,6 +117,8 @@ println("plot data...")
 # Define output file name
 if ARGS[2] == ""  ARGS[2] = join(label,"_")  end
 pdffile = pdf.PdfPages(ARGS[2]*".pdf")
+# Define night-time shading
+nights = def_night(rates,pltnight[2])
 
 # Loop over different plot types
 for n = 1:length(icase)
@@ -126,11 +129,12 @@ for n = 1:length(icase)
       src, snk, src_rev, snk_rev =
         load_plotdata(spc,case,sources,sinks,concs,label,llim=lims[1],ulim=lims[2])
       # Output flux plots
-      fig = plot_data(spc,label[case],specs[case][:TIME],src,snk)
+      fig = plot_data(spc,label[case],specs[case][:TIME],src,snk,nights[case],pltnight)
       if fig != nothing  pdffile[:savefig](fig)  end
       # if fig != nothing  fig[:show]()  end
       # Output revised flux plots, if major fluxes have been removed
-      fig = plot_data(spc,label[case],specs[case][:TIME],src_rev,snk_rev)
+      fig = plot_data(spc,label[case],specs[case][:TIME],src_rev,snk_rev,
+            nights[case],pltnight)
       if fig != nothing  pdffile[:savefig](fig)  end
       # if fig != nothing  fig[:show]()  end
       # input("Next picture?")
@@ -142,21 +146,45 @@ for n = 1:length(icase)
       ylines, ystack = get_stackdata(spc,icase[n][i],specs,unit[n])
       lt = make_plots.sel_ls(cs=colstyle[i], nc=1:length(ylines), nt=icase[n][i])
       fig = make_plots.plot_stack(specs[icase[n][i]][:TIME],ylines,ystack,label[icase[n][i]],
-                                  spc,unit[n],lt)
+                                  spc,unit[n],lt,nights[icase[n][i]],pltnight)
       pdffile[:savefig](fig)
     end  end
   elseif what[n] == "specs"
+    # Define night-time shading for current plot section
+    curr_night = pltnight
+    night = nights[icase[n][1]]
+    # Test night-times are the same, if not, omit shading for this section
+    for i = 2:length(icase[n])
+      if nights[1] != nights[i]
+        curr_night[2] = 0.0
+        println("Warning! Different night-times in plot section $n.")
+        println("Night-time shading switched of for this case.")
+        break
+      end
+    end
     # Plot line plots of species concentrations for all cases
     for case in plotdata[n]
       fig = make_plots.lineplot(specs[icase[n][1]][:TIME],specs,label,
-                                what[n],unit[n],icase[n],case)
+                                what[n],unit[n],icase[n],case,night,curr_night)
       pdffile[:savefig](fig)
     end
   elseif what[n] == "rates"
+    # Define night-time shading for current plot section
+    curr_night = pltnight
+    night = nights[icase[n][1]]
+    # Test night-times are the same, if not, omit shading for this section
+    for i = 2:length(icase[n])
+      if nights[1] != nights[i]
+        curr_night[2] = 0.0
+        println("Warning! Different night-times in plot section $n.")
+        println("Night-time shading switched of for this case.")
+        break
+      end
+    end
     # Plot line plots of reaction rates for all cases
     for case in plotdata[n]
       fig = make_plots.lineplot(rates[icase[n][1]][:TIME],rates,label,
-                                what[n],unit[n],icase[n],case)
+                                what[n],unit[n],icase[n],case,night,curr_night)
       pdffile[:savefig](fig)
     end
   end

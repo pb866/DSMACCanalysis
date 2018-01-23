@@ -196,11 +196,18 @@ function ncload(spc::PyCall.PyObject,rat::PyCall.PyObject)
   rates = DataFrame(JTIME = jtime, TIME = modtime)
   # Add data to DataFrames
   for s in spc_cols[2:end]  specs[s] = spc[s][:values]  end
-  for s in rat_cols[2:end]  rates[s] = rat[s][:values]  end
+  for s in rat_cols[2:end]
+    try rates[s] = rat[s][:values]
+    catch
+      try rates[s] = sum.(rat[s][:values])
+        println("Collapsing duplicate reactions for $s.")
+      end
+    end
+  end
 
 
   # Return dataframe
   return specs, rates
-end
+end #function ncload
 
 end #module NCload

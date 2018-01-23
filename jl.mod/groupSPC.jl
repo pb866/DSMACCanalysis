@@ -104,7 +104,7 @@ end #function readDB
 From array with dataframes of species concentrations and the translation database,
 return an array of arrays with species names translated to GECKO-A nomenclature.
 """
-function translateNMVOC(dframes,spcDB::DataFrames.DataFrame)
+function translateNMVOC(dframes,spcDB::DataFrames.DataFrame;MCM::String="v3.3.1")
 
   # Initialise "outer" array (array of arrays)
   gspc = []
@@ -115,12 +115,25 @@ function translateNMVOC(dframes,spcDB::DataFrames.DataFrame)
     # Loop over dataframe headers with species names
     for name in string.(names(df))
       # Translate species from MCM to GECKO-A names
-      idx = find(spc==name  for spc in spcDB[:mcm])
+      idx = find(spcDB[:mcm].==name)
       if isempty(idx)
         println("translateNMVOC: $name not found. Species ignored for grouping.")
-      elseif spcDB[:gecko][idx[1]][1] != 'G' && spcDB[:gecko][idx[1]] != "CH4"
+        continue
+      elseif length(idx) > 1
+        println("Warning! Several species with name $name found.")
+        if MCM == "v3.3.1"
+          println("First entry in the database used.")
+          idx = idx[1]
+        else
+          println("Last entry in the database used.")
+          idx = idx[end]
+        end
+      else
+        idx = idx[1]
+      end
+      if spcDB[:gecko][idx][1] != 'G' && spcDB[:gecko][idx] != "CH4"
         # Save names on successful find in inner array
-        push!(gnames,spcDB[:gecko][idx[1]])
+        push!(gnames,spcDB[:gecko][idx])
       end
     end
     # Save inner array in outer array
@@ -139,14 +152,19 @@ Translate a list of species `specs` with the help of the translation database `d
 from the chosen language with keyword `sym_in` to the chosen language with keyword
 `sym_out` and return list of translated species names `tspc`.
 """
-function translateSPC(specs,db,sym_in,sym_out)
+function translateSPC(specs,db,sym_in,sym_out;MCM::String="v3.3.1")
 
   # Initilise list of translated species names
   tspc = String[]
   # Loop over input species names
   for spec in specs
     # Find index of species in translation database
-    idx = find(db[Symbol(sym_in)].==spec)[1]
+    idx = find(db[Symbol(sym_in)].==spec)
+    if MCM == "v3.3.1"
+      idx = idx[1]
+    else
+      idx = idx[end]
+    end
     # Return and save species with this index in the chosen output language
     push!(tspc,string(db[Symbol(sym_out)][idx]))
   end
@@ -212,7 +230,7 @@ CN stands for carbon number, although ether groups count towards the molecule's
 size as well.
 
 """
-function group_specs(gspc,spcDB::DataFrames.DataFrame)
+function group_specs(gspc,spcDB::DataFrames.DataFrame;MCM::String="v3.3.1")
 
   # Initilise "outer" array for scenarios
   chrom_class = []; OCratio_class = []; size_class = []
@@ -244,7 +262,7 @@ function group_specs(gspc,spcDB::DataFrames.DataFrame)
       else #General cases: counting O, C atoms to calculate properties
         ### Initilise ###
         # Translate species name back to MCM nomenclature
-        mspc  = translateSPC([spc],spcDB,"gecko","mcm")[1]
+        mspc  = translateSPC([spc],spcDB,"gecko","mcm";MCM=MCM)[1]
 
         # Determine all chromophores in the molecule
         chrom = init_chrom(spc)
