@@ -5,8 +5,10 @@ DATA/TOLm3.nc DATA/TOLm4.nc
 # Specify cut-off for minor/major reactions
 # and net fluxes for inorganic Ox/NOx cycles
 Settings:
+MCM:     v3.3.1
 cut-off: 0.05, 1.0
-cycles: reduce
+cycles:  reduce
+night:   black/0.2
 
 Plotting: # Specify plots for pdf
 

@@ -103,8 +103,6 @@ Furthermore, the full list with scenario names (`scen`) is needed.
 """
 function load_plotdata(spc,s,sources,sinks,conc,scen;
                        llim::Float64=0.05, ulim::Float64=0.7)
-  # Generate x data for sinks and sources
-  modtime = get_Xdata(conc,s)
   # Generate y data for sources
   idx, fraction = spc_stats(spc,s,sources)
   if idx != nothing  Ysrc, Ysrc_rev = get_Ydata(sources,s,idx,fraction,llim,ulim)
@@ -121,7 +119,7 @@ function load_plotdata(spc,s,sources,sinks,conc,scen;
   end
 
   # Return model time, source and sink data (with labels as tuple)
-  return modtime, Ysrc, Ysnk, Ysrc_rev, Ysnk_rev
+  return Ysrc, Ysnk, Ysrc_rev, Ysnk_rev
 end #function load_plotdata
 
 
@@ -131,7 +129,7 @@ end #function load_plotdata
 Plot sources (`src`) and sinks (`snk`) over model time as a stacked area plot
 for the current species `spc` int the current scenario `scen`.
 """
-function plot_data(spc,scen,modtime,src,snk)
+function plot_data(spc,scen,modtime,src,snk,nights,pltnight)
   # Plot data and save plots
   if src[1]=="no fluxes" && snk[1]=="no fluxes"
     # Ignore plots with no valid data
@@ -142,17 +140,17 @@ function plot_data(spc,scen,modtime,src,snk)
     snk[1] .*= -1.
     # Set colour scheme
     cs, dt = sel_ls(cs="sink",nc=1:length(snk[2]))
-    fig = plot_flux(spc, scen, modtime, snk, cs)
+    fig = plot_flux(spc, scen, modtime, snk, cs, nights, pltnight)
     # Restore original sink fluxes
     snk[1] .*= -1.
   elseif snk[1]=="no fluxes"
     # Plots without sinks
     # Set colour scheme
     cs, dt = sel_ls(cs="source",nc=1:length(src[2]))
-    fig = plot_flux(spc, scen, modtime, src, cs)
+    fig = plot_flux(spc, scen, modtime, src, cs, nights, pltnight)
   else
     # Plots with sources and sinks
-    fig = plot_prodloss(spc, scen, modtime, src, snk)
+    fig = plot_prodloss(spc, scen, modtime, src, snk, nights, pltnight)
   end
 
   # Return PyObject with plot data
@@ -216,28 +214,6 @@ function spc_stats(spc,s,flux_data)
   # Return species index and fractions
   return idx, fraction
 end #function spc_stats
-
-
-"""
-    get_Xdata(conc,s)
-
-From the species concentration array `conc` and the scenario index `s`, calculate
-the model time (x values) for the current plots and return them as array.
-"""
-function get_Xdata(conc,s)
-  # Initilise
-  modtime = Float64[]; t = 0.
-  # Get time step from last 2 times
-  dt = conc[s][:TIME][end] - conc[s][:TIME][end-1]
-  # Use time step to fill the array for the length of the model run with times
-  # starting at 0
-  for i = 1:length(conc[s][:TIME])
-    push!(modtime,t); t += dt/3600
-  end
-
-  # Return time array
-  return modtime
-end #function get_Xdata
 
 
 """

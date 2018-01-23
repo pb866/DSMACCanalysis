@@ -27,6 +27,7 @@ Module to group species and concentrations by the properties
 - init_SizeClass
 - group_CN
 - group_conc
+- specialSPC
 """
 module groupSPC
 
@@ -103,7 +104,7 @@ end #function readDB
 From array with dataframes of species concentrations and the translation database,
 return an array of arrays with species names translated to GECKO-A nomenclature.
 """
-function translateNMVOC(dframes,spcDB::DataFrames.DataFrame)
+function translateNMVOC(dframes,spcDB::DataFrames.DataFrame;MCM::String="v3.3.1")
 
   # Initialise "outer" array (array of arrays)
   gspc = []
@@ -114,12 +115,25 @@ function translateNMVOC(dframes,spcDB::DataFrames.DataFrame)
     # Loop over dataframe headers with species names
     for name in string.(names(df))
       # Translate species from MCM to GECKO-A names
-      idx = find(spc==name  for spc in spcDB[:mcm])
+      idx = find(spcDB[:mcm].==name)
       if isempty(idx)
         println("translateNMVOC: $name not found. Species ignored for grouping.")
-      elseif spcDB[:gecko][idx[1]][1] != 'G' && spcDB[:gecko][idx[1]] != "CH4"
+        continue
+      elseif length(idx) > 1
+        println("Warning! Several species with name $name found.")
+        if MCM == "v3.3.1"
+          println("First entry in the database used.")
+          idx = idx[1]
+        else
+          println("Last entry in the database used.")
+          idx = idx[end]
+        end
+      else
+        idx = idx[1]
+      end
+      if spcDB[:gecko][idx][1] != 'G' && spcDB[:gecko][idx] != "CH4"
         # Save names on successful find in inner array
-        push!(gnames,spcDB[:gecko][idx[1]])
+        push!(gnames,spcDB[:gecko][idx])
       end
     end
     # Save inner array in outer array
@@ -138,14 +152,19 @@ Translate a list of species `specs` with the help of the translation database `d
 from the chosen language with keyword `sym_in` to the chosen language with keyword
 `sym_out` and return list of translated species names `tspc`.
 """
-function translateSPC(specs,db,sym_in,sym_out)
+function translateSPC(specs,db,sym_in,sym_out;MCM::String="v3.3.1")
 
   # Initilise list of translated species names
   tspc = String[]
   # Loop over input species names
   for spec in specs
     # Find index of species in translation database
-    idx = find(spc==spec  for spc in db[Symbol(sym_in)])[1]
+    idx = find(db[Symbol(sym_in)].==spec)
+    if MCM == "v3.3.1"
+      idx = idx[1]
+    else
+      idx = idx[end]
+    end
     # Return and save species with this index in the chosen output language
     push!(tspc,string(db[Symbol(sym_out)][idx]))
   end
@@ -211,7 +230,7 @@ CN stands for carbon number, although ether groups count towards the molecule's
 size as well.
 
 """
-function group_specs(gspc,spcDB::DataFrames.DataFrame)
+function group_specs(gspc,spcDB::DataFrames.DataFrame;MCM::String="v3.3.1")
 
   # Initilise "outer" array for scenarios
   chrom_class = []; OCratio_class = []; size_class = []
@@ -230,26 +249,33 @@ function group_specs(gspc,spcDB::DataFrames.DataFrame)
 
     # Loop over species in each scenario
     for spc in data
+      # Special species
+      if spc[1]=='{'
+        mspc, chrom, CN, OCratio, found = specialSPC(spc)
+        # Skip unknown species
+        if found == false  continue  end
       # Double check correctness of GECKO-A string
-      if uppercase(spc[1])!='C' && spc[1]!='-'  &&  spc[1:3]!="new"
+      elseif uppercase(spc[1])!='C' && spc[1]!='-'  &&  spc[1:3]!="new"
         println("Warning! Species $spc does not start with carbon group, ether group")
-        println("or key 'new' for new generic model species. Unpredicted results possible.")
-      end
-      ### Initilise ###
-      # Translate species name back to MCM nomenclature
-      mspc  = translateSPC([spc],spcDB,"gecko","mcm")[1]
+        println("or key 'new' for new generic model species. Species ignored.")
+        continue
+      else #General cases: counting O, C atoms to calculate properties
+        ### Initilise ###
+        # Translate species name back to MCM nomenclature
+        mspc  = translateSPC([spc],spcDB,"gecko","mcm";MCM=MCM)[1]
 
-      # Determine all chromophores in the molecule
-      chrom = init_chrom(spc)
-      # Determine molecule's size (number of carbon and ether groups)
-      CN=length(matchall(r"C(?!l)"i,spc))+length(matchall(r"-O"i,spc))
-      # Determine O:C ratio
-      # O: number of explicitly written 'O' + implied O using abreviations as in NO2
-      O=length(matchall(r"O"i,spc))+length(matchall(r"O2\)"i,spc))
-      # C: number of C, but no C in Cl + number of aromatic c (therefore case-insensitive)
-      C=length(matchall(r"C(?!l)"i,spc))
-      # Final ratio:
-      OCratio=O/C
+        # Determine all chromophores in the molecule
+        chrom = init_chrom(spc)
+        # Determine molecule's size (number of carbon and ether groups)
+        CN=length(matchall(r"C(?!l)"i,spc))+length(matchall(r"-O"i,spc))
+        # Determine O:C ratio
+        # O: number of explicitly written 'O' + implied O using abreviations as in NO2
+        O=length(matchall(r"O"i,spc))+length(matchall(r"O2\)"i,spc))
+        # C: number of C, but no C in Cl + number of aromatic c (therefore case-insensitive)
+        C=length(matchall(r"C(?!l)"i,spc))
+        # Final ratio:
+        OCratio=O/C
+      end
 
       #––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––#
 
@@ -357,7 +383,7 @@ function init_ChromClass()
   # Compile single arrays in overall array and return it
   return [Ald, Ket, DiCar, Kete, Nitro, DiNitro, Nit, DiNit, PNit, DiPNit, PAN,
           ROOH, DiROOH, PAA, SCI, Poly, NoChr, Rad, New]
-end
+end #function init_ChromClass
 
 
 """
@@ -377,10 +403,10 @@ function group_CC(spc, mspc, chrom, CC)
   # Exclude radicals, but not stabilised Criegee intermediates
   elseif length(matchall(r"\.",spc))>0 &&
          length(matchall(r"\.\(OO\.\)(?!\*)",spc))==0         push!(CC[18],mspc)
-  elseif all(chrom.==0)                                       push!(CC[17],mspc)
   # Species with no chromophores
-  elseif all(chrom[2:end].==0) && chrom[1]==1                 push!(CC[1], mspc)
+  elseif all(chrom.==0)                                       push!(CC[17],mspc)
   # Carbonyl and ketene classes
+  elseif all(chrom[2:end].==0) && chrom[1]==1                 push!(CC[1], mspc)
   elseif chrom[1]==0 && all(chrom[3:end].==0) && chrom[2]==1  push!(CC[2], mspc)
   elseif (chrom[1]>0 || chrom[2]>0) && all(chrom[3:end].==0)  push!(CC[3], mspc)
   elseif all(chrom[1:2].==0) && all(chrom[4:end].==0)         push!(CC[4], mspc)
@@ -424,7 +450,7 @@ Initilise an empty array of length 4 with String arrays for each O:C ratio class
 function init_OCclass()
   oc1 = String[]; oc2 = String[]; oc3 = String[]; oc4 = String[]
   return [oc1,oc2,oc3,oc4]
-end
+end #function init_OCclass
 
 
 """
@@ -457,7 +483,7 @@ function group_OC(OCclasses,OCratio,gspc,mspc)
 
   # Return array with appended lists of O:C ratio classes
   return OCclasses
-end
+end #function group_OC
 
 
 
@@ -472,7 +498,7 @@ function init_SizeClass()
   sc5 = String[]; sc6 = String[]; sc7 = String[]; sc8 = String[]
   sc9 = String[]; sc0 = String[]
   return [sc1,sc2,sc3,sc4,sc5,sc6,sc7,sc8,sc9,sc0]
-end
+end #function init_SizeClass
 
 
 """
@@ -507,7 +533,7 @@ function group_CN(SizeClasses,CN,gspc,mspc)
 
   # Return array with appended lists of size classes
   return SizeClasses
-end
+end #function group_CN
 
 
 """
@@ -529,6 +555,101 @@ function group_conc(output,class_data,classes)
   end
 
   return output
-end
+end #function group_conc
+
+
+"""
+    specialSPC(spc)
+
+Handle special species (`spc` as GECKO-A long names/formulas) in the MCM
+that are currently not available in GECKO-A.
+
+Special species are wrapped in curly braclets (`{}`). In `specialSPC`, a DataFrame
+with all special species (currently acetylene and organic sulphur species from DMS
+oxidation) is defined with columns for the preliminary GECKO-A formula (`:species`),
+the MCM `name` and the corresponding molecule's `size`, the O:C ratio (`:oc`),
+and an array with the number of all chromophores (`chr`).
+
+From that DataFrame, the function returns the MCM names, chromophore array, O:C
+ratio, size, and a flag, whether the GECKO-A name was found or not in that order.
+"""
+function specialSPC(spc)
+
+  # Initilise
+  found = true
+  mspc = nothing; chr = nothing; cn = nothing; oc = nothing
+  # Define special cases acetylene and sulphur species from DMS chemistry
+  # in a DataFrame with columns species, size, oc, and chr
+  special_case = DataFrame(
+    # Species (5 per line)
+    species =
+      ["{CH3SO(OO.)}", "{CH3S(OH)(OO.)CH3}", "{CH3SCH3}", "{CH3SCH2(O.)}", "{CH3SO(OONO2)}",
+       "{CH3SO(OH)}", "{CH3S.}", "{CH3S(O.)}", "{CH3SO2CH3}", "{CH3SO2CHO}",
+       "{CH3SCH2(OOH)}", "{CH3SO2(OOH)}", "{CH3SO2(OH)}", "{CH3SO2(OO.)}", "{CH3SOCH3}",
+       "{CH3SO2CH2(O.)}", "{CH3SO2CH2(OOH)}", "{CH3SO2CH2(OH)}", "{CH3SO2CH2(OO.)}", "{CH3S(OO.)}",
+       "{CH3(SO2.)}", "{CH3SO2(O.)}", "{CH3SO(OOH)}", "{CH3SO2(OONO2)}", "{CH3SCH2(OO.)}",
+       "{CH3SCH2(OH)}", "{CH#CH}"],
+    # MCM names (5 per line)
+    name = ["CH3SOO2", "HODMSO2", "DMS", "CH3SCH2O", "CH3SOO2NO2",
+            "MSIA", "CH3S", "CH3SO", "DMSO2", "CH3SO2CHO",
+            "CH3SCH2OOH", "CH3SO2OOH", "MSA", "CH3SO2O2", "DMSO",
+            "DMSO2O", "DMSO2OOH", "DMSO2OH", "DMSO2O2", "CH3SOO",
+            "CH3SO2", "CH3SO3", "CH3SOOOH", "CH3SO4NO2", "CH3SCH2O2",
+            "CH3SCH2OH", "C2H2"],
+    # Species size (15 and 12 per line)
+    size = [2, 3, 3, 3, 2, 2, 2, 2, 3, 3, 3, 2, 2, 2, 3,
+            3, 3, 3, 3, 2, 2, 2, 2, 2, 3, 3, 2],
+    # O:C ratio (5 per line)
+    oc = [3.0, 1.5, 0.0, 0.5, 5.0,
+          2.0, 0.0, 1.0, 1.0, 1.5,
+          1.0, 4.0, 3.0, 4.0, 0.5,
+          1.5, 2.0, 1.5, 2.0, 2.0,
+          2.0, 3.0, 3.0, 6.0, 1.0,
+          0.5, 0.0],
+    # Chromophore classes
+    chr = [[0,0,0,0,0,0,0,0,0,0], # CH3SO(OO.)
+          [0,0,0,0,0,0,0,0,0,0],  # CH3S(OH)(OO.)CH3
+          [0,0,0,0,0,0,0,0,0,0],  # CH3SCH3
+          [0,0,0,0,0,0,0,0,0,0],  # CH3SCH2(O.)
+          [0,0,0,0,0,0,0,0,0,0],  # CH3SO(OONO2)
+          [0,0,0,0,0,0,0,0,0,0],  # CH3SO(OH)
+          [0,0,0,0,0,0,0,0,0,0],  # CH3S.
+          [0,0,0,0,0,0,0,0,0,0],  # CH3S(O.)
+          [0,0,0,0,0,0,0,0,0,0],  # CH3SO2CH3
+          [1,0,0,0,0,0,0,0,0,0],  # CH3SO2CHO
+          [0,0,0,0,0,0,0,1,0,0],  # CH3SCH2(OOH)
+          [0,0,0,0,0,0,0,1,0,0],  # CH3SO2(OOH)
+          [0,0,0,0,0,0,0,0,0,0],  # CH3SO2(OH)
+          [0,0,0,0,0,0,0,0,0,0],  # CH3SO2(OO.)
+          [0,0,0,0,0,0,0,0,0,0],  # CH3SOCH3
+          [0,0,0,0,0,0,0,0,0,0],  # CH3SO2CH2(O.)
+          [0,0,0,0,0,0,0,1,0,0],  # CH3SO2CH2(OOH)
+          [0,0,0,0,0,0,0,0,0,0],  # CH3SO2CH2(OH)
+          [0,0,0,0,0,0,0,0,0,0],  # CH3SO2CH2(OO.)
+          [0,0,0,0,0,0,0,0,0,0],  # CH3S(OO.)
+          [0,0,0,0,0,0,0,0,0,0],  # CH3(SO2.)
+          [0,0,0,0,0,0,0,0,0,0],  # CH3SO2(O.)
+          [0,0,0,0,0,0,0,1,0,0],  # CH3SO(OOH)
+          [0,0,0,0,0,0,0,0,0,0],  # CH3SO2(OONO2)
+          [0,0,0,0,0,0,0,0,0,0],  # CH3SCH2(OO.)
+          [0,0,0,0,0,0,0,0,0,0],  # CH3SCH2(OH)
+          [0,0,0,0,0,0,0,0,0,0]]) # CH#CH
+
+  # Find size, O:C ratio, and chromophores of a given species
+  # or warn, if species wasn't found
+  try l = find(special_case[:species].==spc)[1]
+    cn   = special_case[:size][l]
+    oc   = special_case[:oc][l]
+    chr  = special_case[:chr][l]
+    mspc = special_case[:name][l]
+  catch
+    found = false
+    println("Warning! Special species $spc not found. Species ignored.")
+    mspc = nothing; chr = nothing; size = nothing; oc = nothing
+  end
+
+  # Return array with chromophore numbers, molecule's size, and O:C ratio
+  return mspc, chr, cn, oc, found
+end #function specialSPC
 
 end #module groupSPC

@@ -10,14 +10,17 @@ species/reactions to be plotted and further indices needed for the processing
 of the data.
 
 
-# Public functions
+# Functions
 
+## Public
 - commission_plot
 - get_scenario
 - get_settings
 - prepare_plots
-- DSMACCoutput
 - get_stackdata
+
+## Private
+- rm_blanklines
 """
 module jlplot
 
@@ -32,7 +35,8 @@ export commission_plot,
        get_settings,
        prepare_plots,
        DSMACCoutput,
-       get_stackdata
+       get_stackdata,
+       def_night
 
 # Find directory of module source code
 cdir=Base.source_dir()
@@ -54,6 +58,7 @@ end
 if all(LOAD_PATH.!=cdir)  push!(LOAD_PATH,cdir)  end
 
 using fhandle
+using make_plots: night_shade
 using NCload
 using DataFrames
 
@@ -78,6 +83,7 @@ function commission_plot(ifile::String="plot.inp")
   end
   # Read and store lines from input file
   commission = rdinp(ifile, default_dir=def_dir)
+  commission = strip.(commission)
   # Remove comments in file content
   for i = length(commission):-1:1
     if startswith(commission[i],"#")  deleteat!(commission,i)
@@ -171,32 +177,40 @@ end #function get_scenario
 
 From the `lines` in the input plot file and the index for the start of the
 settings section in the lines `sett_idx`, find and return the lower and upper
-cut-off parameters for minor/major fluxes and the switch to calculate (or not)
-net cycles of chemical fluxes or return the default values of llim = 0.05,
-ulim = 0.7, and cycles = "reduce".
+cut-off parameters for minor/major fluxes (as array `[llim, ulim]`), the switch
+to calculate (or not) net cycles of chemical fluxes, and the colour and
+transparency of night-time shading in plots or return the default values of
+llim = 0.05, ulim = 0.7, cycles = "reduce", and no night-time shading.
 """
 function get_settings(lines,sett_idx)
 
   # Set default cut-off parameters
+  mcm = "v3.3.1"
   llim = 0.05
   ulim = 0.7
   cycles = "reduce"
+  nightcol = "white"; ntrans = 0.0
   # Overwrite parameters with values from the Settings section, if defined
   if sett_idx!=0
     i = sett_idx
     while lines[i] != ""
-      if lines[i][1:8]=="cut-off:"
+      if lines[i][1:4] == "MCM:"
+        mcm = strip(lines[i][5:end])
+      elseif lines[i][1:8]=="cut-off:"
         lines[i] = replace(lines[i],r",|;"," ") # allow other separators than spaces
         llim, ulim = float.(split(lines[i][9:end]))
       elseif lines[i][1:7]=="cycles:"
         cycles = strip(lines[i][8:end])
+      elseif lines[i][1:6]=="night:"
+        nightcol, ntrans = strip.(split(lines[i][7:end],"/"))
+        ntrans = float(ntrans)
       end
       i += 1
     end
   end
 
   # Return lower and upper cut-off
-  return llim, ulim, cycles
+  return [llim, ulim], cycles, [nightcol, ntrans], mcm
 end #function get_settings
 
 
@@ -271,51 +285,6 @@ end #function prepare_plots
 
 
 """
-    DSMACCoutput(ncfiles)
-
-Compile data of netCDF files in Julia readable formats.
-
-Data will be stored in a dictionary distinguishing between `"specs"` and `"rates"`,
-each holding an array of dataframes with data from the `ncfiles` from each scenario
-compiled in the array and the different species concentrations/reaction rates
-compiled in the dataframes.
-
-The function also calculates the model time starting with `0` at the beginning of the
-model run and stores an array in the dictionary entry `"time"`.
-"""
-function DSMACCoutput(ncfiles)
-
-  # Assume either DSMACC main folder or DSMACC/AnalysisTools/DSMACCanalysis
-  # as current directory, other wise add/adjust folder path here:
-  if splitdir(pwd())[2] == "DSMACCanalysis"  def_dir = "../../save/results"
-  else def_dir = "./save/results"
-  end
-
-  # Loop over all nc file, check for existance and read content
-  # separately for species concentrations and reaction rates
-  spec = []; rate = []
-  for ncfile in ncfiles
-    # Assign default path, if no path is specified for the nc files
-    if dirname(ncfile)==""  ncfile = normpath(joinpath(def_dir,ncfile))  end
-    # Read species concentrations/reaction rates of current nc file
-    spc, rat = get_ncdata(ncfile)
-    # Save concentrations/rates in array with all scenarios
-    push!(spec,spc); push!(rate,rat)
-  end
-
-  # Calculate model time starting at 0, from the time step of the last 2 model times
-  dt = spec[1][end,:TIME]-spec[1][end-1,:TIME]
-  t = 0; time = Float64[]
-  for i = 1:length(spec[1][:,:TIME])
-    push!(time, t/3600); t += dt
-  end
-
-  # Return dictionry with model time, and concentrations/rates of all scenarios
-  return data = Dict("time"=>time, "specs"=>spec, "rates"=>rate)
-end #function DSMACCoutput
-
-
-"""
     get_stackdata(spc_list,case,ydata,unit)
 
 Plot the concentrations of the species in `spc_list` for the current `case` using
@@ -354,6 +323,41 @@ function get_stackdata(spc_list,case,ydata,unit)
 
   # Return boundaries and areas to be plotted over time
   return ylines, ystack
+end
+
+
+"""
+    def_night(rates, ntrans)
+
+From the array `rates` with DataFrames of all scenarios holding the reaction rates,
+return a n×2 matrix indices for the model times at the beginning/end of night for
+all scenarios. If the transparency value for night-time shading `ntrans` is set
+to 0 in the settings, skip the routine and return an empty array.
+"""
+function def_night(rates, ntrans)
+  # Initilise array
+  night = Any[]
+  # Skip, if night-time shading is switched off in settings
+  if ntrans != 0.0
+    # Loop over scenarios
+    for (i, scen) in enumerate(rates)
+      # Get indices for times of sunsets/sunrises
+      nght = Matrix{Int64}(0,2)
+      try nght = night_shade(scen[Symbol("NO2-->O+NO")])
+      catch
+        try nght = night_shade(scen[Symbol("NO2-->NO+O")])
+        catch
+          print("J(NO2) not found in rates. ")
+          println("Night-time shading omitted in Scenario $i.")
+        end
+      end
+      # Save starts/ends of all nights for each scenario
+      push!(night, nght)
+    end
+  end
+
+  # Return array with bounderies of all nights in all scenarios
+  return night
 end
 
 
