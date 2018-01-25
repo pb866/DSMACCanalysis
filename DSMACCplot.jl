@@ -58,6 +58,11 @@ using NCload
 # For several files, use list of whitespace separated files wrapped in double quotes
 for i = 1:2-length(ARGS)  push!(ARGS,"")  end
 
+# Assume plot input file in parent folder to repo, if no directory is specified
+if dirname(ARGS[1]) == ""
+  ARGS[1] = normpath(joinpath(Base.source_dir(),"..",ARGS[1]))
+end
+
 #––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––#
 
 #####################
@@ -114,9 +119,15 @@ specs = add_conc(specs,chrom_class,OCratio_class,size_class,CC,OC,CN)
 #––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––#
 
 println("plot data...")
-# Define output file name
-if ARGS[2] == ""  ARGS[2] = join(label,"_")  end
-pdffile = pdf.PdfPages(ARGS[2]*".pdf")
+# Define default output file name and directory
+ofile = ARGS[2]
+if ofile == ""  ofile = join(label,"_")  end
+if dirname(ofile) == ""
+  ofile = normpath(joinpath(Base.source_dir(),"../../save/results/",ofile))
+end
+if lowercase(splitext(ofile)[end]) != ".pdf"  ofile *= ".pdf"  end
+# Initilise multipage output pdf
+pdffile = pdf.PdfPages(ofile)
 # Define night-time shading
 nights = def_night(rates,pltnight[2])
 
@@ -152,15 +163,18 @@ for n = 1:length(icase)
   elseif what[n] == "specs"
     # Define night-time shading for current plot section
     curr_night = pltnight
-    night = nights[icase[n][1]]
-    # Test night-times are the same, if not, omit shading for this section
-    for i = 2:length(icase[n])
-      if nights[1] != nights[i]
-        curr_night[2] = 0.0
-        println("Warning! Different night-times in plot section $n.")
-        println("Night-time shading switched of for this case.")
-        break
+    night = []
+    try night = nights[icase[n][1]]
+      # Test night-times are the same, if not, omit shading for this section
+      for i = 2:length(icase[n])
+        if nights[1] != nights[i]
+          curr_night[2] = 0.0
+          println("Warning! Different night-times in plot section $n.")
+          println("Night-time shading switched of for this case.")
+          break
+        end
       end
+    catch; curr_night = ["w", 0.0]
     end
     # Plot line plots of species concentrations for all cases
     for case in plotdata[n]
@@ -171,15 +185,18 @@ for n = 1:length(icase)
   elseif what[n] == "rates"
     # Define night-time shading for current plot section
     curr_night = pltnight
-    night = nights[icase[n][1]]
-    # Test night-times are the same, if not, omit shading for this section
-    for i = 2:length(icase[n])
-      if nights[1] != nights[i]
-        curr_night[2] = 0.0
-        println("Warning! Different night-times in plot section $n.")
-        println("Night-time shading switched of for this case.")
-        break
+    night = []
+    try night = nights[icase[n][1]]
+      # Test night-times are the same, if not, omit shading for this section
+      for i = 2:length(icase[n])
+        if nights[1] != nights[i]
+          curr_night[2] = 0.0
+          println("Warning! Different night-times in plot section $n.")
+          println("Night-time shading switched of for this case.")
+          break
+        end
       end
+    catch; curr_night = ["w", 0.0]
     end
     # Plot line plots of reaction rates for all cases
     for case in plotdata[n]

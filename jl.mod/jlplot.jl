@@ -189,7 +189,7 @@ function get_settings(lines,sett_idx)
   llim = 0.05
   ulim = 0.7
   cycles = "reduce"
-  nightcol = "white"; ntrans = 0.0
+  nightcol = "w"; ntrans = 0.0
   # Overwrite parameters with values from the Settings section, if defined
   if sett_idx!=0
     i = sett_idx
@@ -355,6 +355,7 @@ function def_night(rates, ntrans)
       push!(night, nght)
     end
   end
+  if isempty(night)  night = ones(Float64,length(rates)).⋅(-1)  end
 
   # Return array with bounderies of all nights in all scenarios
   return night
