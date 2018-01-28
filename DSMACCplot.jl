@@ -76,7 +76,7 @@ commission, fidx = commission_plot(ARGS[1])
 ncfiles, label = get_scenario(commission,fidx[1])
 # Set cut-off for flux plots, switch to calculate inorganic net cycles,
 # switch for night-time shading in plots and MCM version used in DSMACC
-lims, cycles, pltnight, mcm = get_settings(commission,fidx[2])
+lims, cycles, pltnight, mcm, t_frmt = get_settings(commission,fidx[2])
 # Read from input file, which plots to generate
 icase, what, unit, plotdata = prepare_plots(commission[fidx[3]:fidx[4]], label)
 # Save DSMACC output using a python script to read nc files and save in Julia format
@@ -139,13 +139,15 @@ for n = 1:length(icase)
       # Load plot data from ropa analysis
       src, snk, src_rev, snk_rev =
         load_plotdata(spc,case,sources,sinks,concs,label,llim=lims[1],ulim=lims[2])
+      # Define time format
+      modtime = specs[case][Symbol(t_frmt)]
       # Output flux plots
-      fig = plot_data(spc,label[case],specs[case][:TIME],src,snk,nights[case],pltnight)
+      fig = plot_data(spc,label[case],modtime,src,snk,nights[case],pltnight,t_frmt)
       if fig != nothing  pdffile[:savefig](fig)  end
       # if fig != nothing  fig[:show]()  end
       # Output revised flux plots, if major fluxes have been removed
-      fig = plot_data(spc,label[case],specs[case][:TIME],src_rev,snk_rev,
-            nights[case],pltnight)
+      fig = plot_data(spc,label[case],modtime,src_rev,snk_rev,
+            nights[case],pltnight,t_frmt)
       if fig != nothing  pdffile[:savefig](fig)  end
       # if fig != nothing  fig[:show]()  end
       # input("Next picture?")
@@ -156,8 +158,10 @@ for n = 1:length(icase)
     for spc in plotdata[n]  for i = 1:length(icase[n])
       ylines, ystack = get_stackdata(spc,icase[n][i],specs,unit[n])
       lt = make_plots.sel_ls(cs=colstyle[i], nc=1:length(ylines), nt=icase[n][i])
-      fig = make_plots.plot_stack(specs[icase[n][i]][:TIME],ylines,ystack,label[icase[n][i]],
-                                  spc,unit[n],lt,nights[icase[n][i]],pltnight)
+      # Define time format
+      modtime = specs[icase[n][i]][Symbol(t_frmt)]
+      fig = make_plots.plot_stack(modtime,ylines,ystack,label[icase[n][i]],
+                                  spc,unit[n],lt,nights[icase[n][i]],pltnight,t_frmt)
       pdffile[:savefig](fig)
     end  end
   elseif what[n] == "specs"
@@ -176,10 +180,12 @@ for n = 1:length(icase)
       end
     catch; curr_night = ["w", 0.0]
     end
+    # Define time format
+    modtime = specs[icase[n][1]][Symbol(t_frmt)]
     # Plot line plots of species concentrations for all cases
     for case in plotdata[n]
-      fig = make_plots.lineplot(specs[icase[n][1]][:TIME],specs,label,
-                                what[n],unit[n],icase[n],case,night,curr_night)
+      fig = make_plots.lineplot(modtime,specs,label,what[n],unit[n],
+                                icase[n],case,night,curr_night,t_frmt)
       pdffile[:savefig](fig)
     end
   elseif what[n] == "rates"
@@ -198,10 +204,12 @@ for n = 1:length(icase)
       end
     catch; curr_night = ["w", 0.0]
     end
+    # Define time format
+    modtime = rates[icase[n][1]][Symbol(t_frmt)]
     # Plot line plots of reaction rates for all cases
     for case in plotdata[n]
-      fig = make_plots.lineplot(rates[icase[n][1]][:TIME],rates,label,
-                                what[n],unit[n],icase[n],case,night,curr_night)
+      fig = make_plots.lineplot(modtime,rates,label,what[n],unit[n],
+                                icase[n],case,night,curr_night,t_frmt)
       pdffile[:savefig](fig)
     end
   end
