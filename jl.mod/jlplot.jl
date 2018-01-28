@@ -189,28 +189,31 @@ function get_settings(lines,sett_idx)
   llim = 0.05
   ulim = 0.7
   cycles = "reduce"
-  nightcol = "white"; ntrans = 0.0
+  nightcol = "w"; ntrans = 0.0
+  t_frmt = "TIME"
   # Overwrite parameters with values from the Settings section, if defined
   if sett_idx!=0
     i = sett_idx
     while lines[i] != ""
       if lines[i][1:4] == "MCM:"
         mcm = strip(lines[i][5:end])
+      elseif lines[i][1:5]=="time:"
+        t_frmt = strip(lines[i][6:end])
+      elseif lines[i][1:6]=="night:"
+        nightcol, ntrans = strip.(split(lines[i][7:end],"/"))
+        ntrans = float(ntrans)
       elseif lines[i][1:8]=="cut-off:"
         lines[i] = replace(lines[i],r",|;"," ") # allow other separators than spaces
         llim, ulim = float.(split(lines[i][9:end]))
       elseif lines[i][1:7]=="cycles:"
         cycles = strip(lines[i][8:end])
-      elseif lines[i][1:6]=="night:"
-        nightcol, ntrans = strip.(split(lines[i][7:end],"/"))
-        ntrans = float(ntrans)
       end
       i += 1
     end
   end
 
   # Return lower and upper cut-off
-  return [llim, ulim], cycles, [nightcol, ntrans], mcm
+  return [llim, ulim], cycles, [nightcol, ntrans], mcm, t_frmt
 end #function get_settings
 
 
@@ -355,6 +358,7 @@ function def_night(rates, ntrans)
       push!(night, nght)
     end
   end
+  if isempty(night)  night = ones(Float64,length(rates)).⋅(-1)  end
 
   # Return array with bounderies of all nights in all scenarios
   return night

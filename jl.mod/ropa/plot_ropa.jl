@@ -129,7 +129,7 @@ end #function load_plotdata
 Plot sources (`src`) and sinks (`snk`) over model time as a stacked area plot
 for the current species `spc` int the current scenario `scen`.
 """
-function plot_data(spc,scen,modtime,src,snk,nights,pltnight)
+function plot_data(spc,scen,modtime,src,snk,nights,pltnight,t_frmt)
   # Plot data and save plots
   if src[1]=="no fluxes" && snk[1]=="no fluxes"
     # Ignore plots with no valid data
@@ -140,17 +140,17 @@ function plot_data(spc,scen,modtime,src,snk,nights,pltnight)
     snk[1] .*= -1.
     # Set colour scheme
     cs, dt = sel_ls(cs="sink",nc=1:length(snk[2]))
-    fig = plot_flux(spc, scen, modtime, snk, cs, nights, pltnight)
+    fig = plot_flux(spc, scen, modtime, snk, cs, nights, pltnight, t_frmt)
     # Restore original sink fluxes
     snk[1] .*= -1.
   elseif snk[1]=="no fluxes"
     # Plots without sinks
     # Set colour scheme
     cs, dt = sel_ls(cs="source",nc=1:length(src[2]))
-    fig = plot_flux(spc, scen, modtime, src, cs, nights, pltnight)
+    fig = plot_flux(spc, scen, modtime, src, cs, nights, pltnight, t_frmt)
   else
     # Plots with sources and sinks
-    fig = plot_prodloss(spc, scen, modtime, src, snk, nights, pltnight)
+    fig = plot_prodloss(spc, scen, modtime, src, snk, nights, pltnight, t_frmt)
   end
 
   # Return PyObject with plot data

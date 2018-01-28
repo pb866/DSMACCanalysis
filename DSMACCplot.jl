@@ -58,6 +58,11 @@ using NCload
 # For several files, use list of whitespace separated files wrapped in double quotes
 for i = 1:2-length(ARGS)  push!(ARGS,"")  end
 
+# Assume plot input file in parent folder to repo, if no directory is specified
+if dirname(ARGS[1]) == ""
+  ARGS[1] = normpath(joinpath(Base.source_dir(),"..",ARGS[1]))
+end
+
 #––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––#
 
 #####################
@@ -71,7 +76,7 @@ commission, fidx = commission_plot(ARGS[1])
 ncfiles, label = get_scenario(commission,fidx[1])
 # Set cut-off for flux plots, switch to calculate inorganic net cycles,
 # switch for night-time shading in plots and MCM version used in DSMACC
-lims, cycles, pltnight, mcm = get_settings(commission,fidx[2])
+lims, cycles, pltnight, mcm, t_frmt = get_settings(commission,fidx[2])
 # Read from input file, which plots to generate
 icase, what, unit, plotdata = prepare_plots(commission[fidx[3]:fidx[4]], label)
 # Save DSMACC output using a python script to read nc files and save in Julia format
@@ -114,9 +119,15 @@ specs = add_conc(specs,chrom_class,OCratio_class,size_class,CC,OC,CN)
 #––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––#
 
 println("plot data...")
-# Define output file name
-if ARGS[2] == ""  ARGS[2] = join(label,"_")  end
-pdffile = pdf.PdfPages(ARGS[2]*".pdf")
+# Define default output file name and directory
+ofile = ARGS[2]
+if ofile == ""  ofile = join(label,"_")  end
+if dirname(ofile) == ""
+  ofile = normpath(joinpath(Base.source_dir(),"../../save/results/",ofile))
+end
+if lowercase(splitext(ofile)[end]) != ".pdf"  ofile *= ".pdf"  end
+# Initilise multipage output pdf
+pdffile = pdf.PdfPages(ofile)
 # Define night-time shading
 nights = def_night(rates,pltnight[2])
 
@@ -128,13 +139,15 @@ for n = 1:length(icase)
       # Load plot data from ropa analysis
       src, snk, src_rev, snk_rev =
         load_plotdata(spc,case,sources,sinks,concs,label,llim=lims[1],ulim=lims[2])
+      # Define time format
+      modtime = specs[case][Symbol(t_frmt)]
       # Output flux plots
-      fig = plot_data(spc,label[case],specs[case][:TIME],src,snk,nights[case],pltnight)
+      fig = plot_data(spc,label[case],modtime,src,snk,nights[case],pltnight,t_frmt)
       if fig != nothing  pdffile[:savefig](fig)  end
       # if fig != nothing  fig[:show]()  end
       # Output revised flux plots, if major fluxes have been removed
-      fig = plot_data(spc,label[case],specs[case][:TIME],src_rev,snk_rev,
-            nights[case],pltnight)
+      fig = plot_data(spc,label[case],modtime,src_rev,snk_rev,
+            nights[case],pltnight,t_frmt)
       if fig != nothing  pdffile[:savefig](fig)  end
       # if fig != nothing  fig[:show]()  end
       # input("Next picture?")
@@ -145,46 +158,58 @@ for n = 1:length(icase)
     for spc in plotdata[n]  for i = 1:length(icase[n])
       ylines, ystack = get_stackdata(spc,icase[n][i],specs,unit[n])
       lt = make_plots.sel_ls(cs=colstyle[i], nc=1:length(ylines), nt=icase[n][i])
-      fig = make_plots.plot_stack(specs[icase[n][i]][:TIME],ylines,ystack,label[icase[n][i]],
-                                  spc,unit[n],lt,nights[icase[n][i]],pltnight)
+      # Define time format
+      modtime = specs[icase[n][i]][Symbol(t_frmt)]
+      fig = make_plots.plot_stack(modtime,ylines,ystack,label[icase[n][i]],
+                                  spc,unit[n],lt,nights[icase[n][i]],pltnight,t_frmt)
       pdffile[:savefig](fig)
     end  end
   elseif what[n] == "specs"
     # Define night-time shading for current plot section
     curr_night = pltnight
-    night = nights[icase[n][1]]
-    # Test night-times are the same, if not, omit shading for this section
-    for i = 2:length(icase[n])
-      if nights[1] != nights[i]
-        curr_night[2] = 0.0
-        println("Warning! Different night-times in plot section $n.")
-        println("Night-time shading switched of for this case.")
-        break
+    night = []
+    try night = nights[icase[n][1]]
+      # Test night-times are the same, if not, omit shading for this section
+      for i = 2:length(icase[n])
+        if nights[1] != nights[i]
+          curr_night[2] = 0.0
+          println("Warning! Different night-times in plot section $n.")
+          println("Night-time shading switched of for this case.")
+          break
+        end
       end
+    catch; curr_night = ["w", 0.0]
     end
+    # Define time format
+    modtime = specs[icase[n][1]][Symbol(t_frmt)]
     # Plot line plots of species concentrations for all cases
     for case in plotdata[n]
-      fig = make_plots.lineplot(specs[icase[n][1]][:TIME],specs,label,
-                                what[n],unit[n],icase[n],case,night,curr_night)
+      fig = make_plots.lineplot(modtime,specs,label,what[n],unit[n],
+                                icase[n],case,night,curr_night,t_frmt)
       pdffile[:savefig](fig)
     end
   elseif what[n] == "rates"
     # Define night-time shading for current plot section
     curr_night = pltnight
-    night = nights[icase[n][1]]
-    # Test night-times are the same, if not, omit shading for this section
-    for i = 2:length(icase[n])
-      if nights[1] != nights[i]
-        curr_night[2] = 0.0
-        println("Warning! Different night-times in plot section $n.")
-        println("Night-time shading switched of for this case.")
-        break
+    night = []
+    try night = nights[icase[n][1]]
+      # Test night-times are the same, if not, omit shading for this section
+      for i = 2:length(icase[n])
+        if nights[1] != nights[i]
+          curr_night[2] = 0.0
+          println("Warning! Different night-times in plot section $n.")
+          println("Night-time shading switched of for this case.")
+          break
+        end
       end
+    catch; curr_night = ["w", 0.0]
     end
+    # Define time format
+    modtime = rates[icase[n][1]][Symbol(t_frmt)]
     # Plot line plots of reaction rates for all cases
     for case in plotdata[n]
-      fig = make_plots.lineplot(rates[icase[n][1]][:TIME],rates,label,
-                                what[n],unit[n],icase[n],case,night,curr_night)
+      fig = make_plots.lineplot(modtime,rates,label,what[n],unit[n],
+                                icase[n],case,night,curr_night,t_frmt)
       pdffile[:savefig](fig)
     end
   end
