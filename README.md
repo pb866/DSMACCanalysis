@@ -223,23 +223,24 @@ Run the script using
 julia DSMACCplot.jl [[<path/>]<input file>] [<path/>[<output scenario name>]]
 ```
 
-where the first script argument defines the name (and directory) of a text file
-with specifications of the desired plots. The second arguments defines the file
-name (without the file ending) and folder path of the output pdf with the desired
-plots. If the input file name is missing in the first argument or the file doesn't
-exist, you will be asked for user input during the execution of the script.
-
-A pdf with all the specified plots will be produced in the directory from which the
-script was called (i.e., either the DSMACC main folder or
-./AnalysisTools/DSMACCanalysis) unless a different folder path is specified in
-the second script argument. If no name was specified in the second script argument,
-the labels of each scenario joined by an underscore (`_`) are used as file name.
+where the first script argument defines the name and directory of a text file
+with specifications of the desired plots. A default directory one level above
+this repository is define, if a folder path is obsolete. If you want plots in
+the current folder (main folder of the reop), us `./` as folder path. The second
+arguments defines the file name and folder path of the output file with the desired
+plots. By default, files will be saved in the DSMACC folder `./save/results`
+assuming the repo is cloned to the `AnalysisTools` folder. Output files are in
+pdf format. The specification in the second script argument is optional and `.pdf`
+will be added to the file name, if missing in the script argument. If no second
+script argument is given, the file name will be the joined labels of all scenarios
+connected by an underscore (`<scen 1>_<scen 2>_..._<scen n>`).  
+If the input file name is missing in the first argument or the file doesn't exist, you will be asked for user input during the execution of the script.
 
 
 The input file with plot specifications
 ---------------------------------------
 
-The input file is devided in 4 sections, each addressed by a section caption. It
+The input file is divided in 4 sections, each addressed by a section caption. It
 is important to keep the order of the sections the following:
 
 1. `Scenarios` section
@@ -269,15 +270,38 @@ file ending). Use those automatic labels to address, which scenarios you want to
 ### Settings section
 
 The second section is optional and is introduced by the keyword `Settings`. It lists
-general specifications of the plots. Currently a lower and upper cut-off can be
-defined. Chemical fluxes smaller than the lower cut-off are combined in the plots.
-If fluxes larger than the upper cut-off exist, a second zoom plot will be created,
-where fluxes above the upper cut-off are omitted to allow the view of the smaller
-fluxes. Define the parameters using the keyword `cut-off:` followed by a list of
-the lower and upper threshold on that line. If you don't want this feature, set the
-lower cut-off to `0.0` and the upper cut-off to `1.0`. If you don't specify thresholds,
-standard values of `0.05` and `0.7` are used for the lower and upper cut-off,
-respectively.
+general specifications of the plots. Currently, options are available for:
+
+- The MCM version used in the DSMACC model runs
+- The time format
+- Night-time shading in plots
+- A lower and upper cut-off for displaying sink and source fluxes c
+- Calculation of net fluxes for inorganic NOx/HOx recycling
+
+By default, _MCMv3.3.1_ is assumed. You can specify, this or any other version
+using the keyword `MCM:` followed by the verion number, e.g. `MCM: v3.3.1`.
+This is important for internal processing as MCM names are translated to GECKO-A
+nomenclature for the analysis of the structure and the lumping by properties.
+While the script should work fine for the latest MCM version, there is no guarantee
+that the script will work correctly for older versions.
+
+There are 2 options for the time format, either as model time in hours starting at 0
+(default) or as Julian time (date/time of the year). Specify the format using the
+keyword `time:` followed by the keyword `TIME` for the default model time format
+or `JTIME` for the Julian time format, e.g.: `time: TIME`.
+
+There is an option to shade night-time periods in the plots. By default, this
+option is shut off, if you want shading, use the keyword `night:` followed by
+specifications for the colour of the shade and a transparancy value between `0`
+(completely transparent) and `1` (completely opaque), e.g. `night: black, 0.2`.
+
+Chemical fluxes smaller than a lower cut-off are combined in the plots. If fluxes
+larger than an upper cut-off exist, a second zoom plot will be created, where
+fluxes above the upper cut-off are omitted to allow the view of the smaller
+fluxes. Define the parameters using the keyword `cut-off:` followed by specifications
+for the lower and upper threshold, e.g. `cut-off: 0.05, 0.7`. If you don't want
+this feature, set the lower cut-off to `0.0` and the upper cut-off to `1.0`. If
+you don't specify thresholds, standard values of `0.05` and `0.7` are used.
 
 Furthermore, net fluxes of inorganic main NOx and Ox cycles can be formed during
 the ROPA analysis as described above. By default, this feature is set. To illustrate
@@ -375,6 +399,13 @@ It is optional and can be started by the caption `Comments:`.
 
 Version history
 ===============
+
+Version 0.6.1
+-------------
+
+- Bugfix: Plotting previously omitted last line of species in the last plot type
+  when Comments section is missing
+- Bugfix: Correcting paths for module auxdata to be recognised on earth0
 
 Version 0.6
 -----------
