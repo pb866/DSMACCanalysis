@@ -400,6 +400,19 @@ It is optional and can be started by the caption `Comments:`.
 Version history
 ===============
 
+Version 0.6.2
+-------------
+
+- New features:
+  + Optional night-time shading in plots
+  + Options for model time (starting at 0) or Julian time (date and time of the year)
+  + Treatment of older MCM versions (experimental)
+- Updated MCM species database
+- Bugfixes concerning the display of the order of magnitude of chemical fluxes
+- New default paths of I/O files outside of repository
+- Code improvements
+- __This version works with [auxdata release v0.6](https://github.com/pb866/auxdata/releases/tag/v0.6).__
+
 Version 0.6.1
 -------------
 
