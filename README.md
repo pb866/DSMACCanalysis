@@ -273,6 +273,7 @@ The second section is optional and is introduced by the keyword `Settings`. It l
 general specifications of the plots. Currently, options are available for:
 
 - The MCM version used in the DSMACC model runs
+- The time format
 - Night-time shading in plots
 - A lower and upper cut-off for displaying sink and source fluxes c
 - Calculation of net fluxes for inorganic NOx/HOx recycling
@@ -283,6 +284,11 @@ This is important for internal processing as MCM names are translated to GECKO-A
 nomenclature for the analysis of the structure and the lumping by properties.
 While the script should work fine for the latest MCM version, there is no guarantee
 that the script will work correctly for older versions.
+
+There are 2 options for the time format, either as model time in hours starting at 0
+(default) or as Julian time (date/time of the year). Specify the format using the
+keyword `time:` followed by the keyword `TIME` for the default model time format
+or `JTIME` for the Julian time format, e.g.: `time: TIME`.
 
 There is an option to shade night-time periods in the plots. By default, this
 option is shut off, if you want shading, use the keyword `night:` followed by
