@@ -191,6 +191,7 @@ function get_settings(lines,sett_idx)
   cycles = "reduce"
   nightcol = "w"; ntrans = 0.0
   t_frmt = "TIME"
+  fig = "off"
   # Overwrite parameters with values from the Settings section, if defined
   if sett_idx!=0
     i = sett_idx
@@ -207,13 +208,15 @@ function get_settings(lines,sett_idx)
         llim, ulim = float.(split(lines[i][9:end]))
       elseif lines[i][1:7]=="cycles:"
         cycles = strip(lines[i][8:end])
+      elseif lines[i][1:4]=="Fig:"
+        fig = strip(lines[i][6:end])
       end
       i += 1
     end
   end
 
   # Return lower and upper cut-off
-  return [llim, ulim], cycles, [nightcol, ntrans], mcm, t_frmt
+  return [llim, ulim], cycles, [nightcol, ntrans], mcm, t_frmt, fig
 end #function get_settings
 
 
