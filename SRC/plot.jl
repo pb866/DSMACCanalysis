@@ -22,7 +22,7 @@ for n = 1:length(icase)
   if what[n]=="fluxes"
     # Loop over species and scenarios for flux plots
     for spc in plotdata[n]  for case in icase[n]
-      if fig=="on"
+      if sfig=="on"
         sfile = join([what[n],spc,label[case]],"_")*".pdf"
         sfile = joinpath(Base.source_dir(),"../FIG/"*replace(sfile,"/","-"))
       else
@@ -48,7 +48,7 @@ for n = 1:length(icase)
     colstyle = ["source","sink"]
     # Plot stack plots of species concentrations for all cases
     for spc in plotdata[n]  for i = 1:length(icase[n])
-      if fig=="on"
+      if sfig=="on"
         if length(spc) > 3
           spc_list = join(spc[1:3],"+")*"+more"
         else
@@ -87,7 +87,7 @@ for n = 1:length(icase)
     modtime = specs[icase[n][1]][Symbol(t_frmt)]
     # Plot line plots of species concentrations for all cases
     for case in plotdata[n]
-      if fig=="on"
+      if sfig=="on"
         sfile = join([what[n],join(case,"+"),join(label,"+")],"_")*".pdf"
         sfile = joinpath(Base.source_dir(),"../FIG/"*replace(sfile,"/","-"))
       else
@@ -117,7 +117,7 @@ for n = 1:length(icase)
     modtime = rates[icase[n][1]][Symbol(t_frmt)]
     # Plot line plots of reaction rates for all cases
     for case in plotdata[n]
-      if fig=="on"
+      if sfig=="on"
         sfile = join([what[n],join(case,"+"),join(label,"+")],"_")*".pdf"
         sfile = joinpath(Base.source_dir(),"../FIG/"*replace(sfile,"/","-"))
       else

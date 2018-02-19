@@ -7,7 +7,7 @@ commission, fidx = commission_plot(ARGS[1])
 ncfiles, label = get_scenario(commission,fidx[1])
 # Set cut-off for flux plots, switch to calculate inorganic net cycles,
 # switch for night-time shading in plots and MCM version used in DSMACC
-lims, cycles, pltnight, mcm, t_frmt, fig = get_settings(commission,fidx[2])
+lims, cycles, pltnight, mcm, t_frmt, sfig = get_settings(commission,fidx[2])
 # Read from input file, which plots to generate
 icase, what, unit, plotdata = prepare_plots(commission[fidx[3]:fidx[4]], label)
 # Save DSMACC output using a python script to read nc files and save in Julia format
@@ -22,7 +22,7 @@ specs, rates = DSMACCoutput(ncfiles)
 #––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––#
 
 # Add folder for single pdfs
-if fig=="on"
+if sfig=="on"
   # Confirm overwrite of old data
   if ispath(normpath(joinpath(Base.source_dir(),"../FIG")))
     println("Overwrite plots in folder FIG?")
