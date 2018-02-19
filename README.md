@@ -52,23 +52,25 @@ Content
 Installation
 ------------
 
-The script is written for and test with
-[Julia version 0.6.2](https://julialang.org/downloads/). If not installed, install Julia. Using `Pkg.add("<package name>")` the following packages need to be installed
-in Julia:
-
-- PyCall
-- PyPlot
-- DataFrames
-- Juno
+The script is written for and tested with the
+[Julia Mac version 0.6.2](https://julialang.org/downloads/). Further tests have
+been performed with the Anaconda 4.3.29 julia v0.6.1 version in an UNIX environment.  
+If not installed, install Julia. The script furthermore uses miniconda's python
+version for julia. Missing Julia and python packages will be installed
+automatically using `Conda` and `pip`.
 
 The script will analyse DSMACC model output from the
 [DSMACC-testing version](https://github.com/pb866/DSMACC-testing.git).
 Create a git submodule in the `AnalysisTools` folder named `DSMACCanalysis`
-(or clone this repository into the AnalysisTools folder).
+(or clone this repository into the AnalysisTools folder) for optimal use with
+DSMACC.
 
 You will furthermore need the modules `fhandle` and `make_plots` from the
-[auxdata](https://github.com/pb866/auxdata.git) repository. Clone the repository
-to a directory of your liking and specify the directory paths in the preambles of
+[auxdata](https://github.com/pb866/auxdata.git) repository. The script will
+automatically download the necessary modules from the auxdata repository and
+store it in the `SRC/jl.mod/` folder. Alternatively, if you have further scripts
+that share files with auxdata, it might be worth cloning this repository to a
+directory of your liking and specify the directory paths in the preambles of
 the following modules:
 
 - DSMACCplot (ll. 27 – 38)

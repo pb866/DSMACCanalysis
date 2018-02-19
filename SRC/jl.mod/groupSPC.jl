@@ -57,8 +57,19 @@ if isdir(joinpath(homedir(),"Util/auxdata/jl.mod")) &&
   all(LOAD_PATH.!=joinpath(homedir(),"Util/auxdata/jl.mod"))
   push!(LOAD_PATH,joinpath(homedir(),"Util/auxdata/jl.mod"))
 end
-using DataFrames
-using fhandle: rdinp
+
+
+try using DataFrames
+catch
+  Pkg.add("DataFrames")
+  using DataFrames
+end
+try using fhandle: rdinp
+catch
+  download("https://raw.githubusercontent.com/pb866/auxdata/master/jl.mod/fhandle.jl",
+           joinpath(Base.source_dir(),"fhandle.jl"))
+  using fhandle: rdinp
+end
 
 
 ##########################

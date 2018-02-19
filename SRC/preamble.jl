@@ -23,13 +23,36 @@ if all(LOAD_PATH.!=mdir)  push!(LOAD_PATH,mdir)  end
 if all(LOAD_PATH.!=rdir)  push!(LOAD_PATH,rdir)  end
 
 # Load modules/functions/python libraries
-using PyPlot, PyCall, DataFrames
-using Juno: input
-import make_plots
-using groupSPC
-using jlplot
-using ropa_tool, plot_ropa
+# Routines linked to python
+try using PyPlot
+catch
+  Pkg.add("PyPlot")
+  using PyPlot
+end
+using PyCall
+# Data handling and data input
+try using DataFrames
+catch
+  Pkg.add("DataFrames")
+  using DataFrames
+end
+try using Juno: input
+catch
+  Pkg.add("Juno")
+  using Juno: input
+end
 using NCload
+# Plotting
+try import make_plots
+catch
+  download("https://raw.githubusercontent.com/pb866/auxdata/master/jl.mod/make_plots.jl",
+           joinpath(Base.source_dir(),"jl.mod","make_plots.jl"))
+  import make_plots
+end
+using jlplot
+# Data analysis
+using groupSPC
+using ropa_tool, plot_ropa
 
 #––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––#
 
@@ -44,4 +67,3 @@ for i = 1:2-length(ARGS)  push!(ARGS,"")  end
 if dirname(ARGS[1]) == ""
   ARGS[1] = normpath(joinpath(Base.source_dir(),"../..",ARGS[1]))
 end
-println(normpath(joinpath(Base.source_dir(),"../..",ARGS[1])))

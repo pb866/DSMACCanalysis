@@ -42,10 +42,33 @@ if isdir(joinpath(homedir(),"Util/auxdata/jl.mod")) &&
   all(LOAD_PATH.!=joinpath(homedir(),"Util/auxdata/jl.mod"))
   push!(LOAD_PATH,joinpath(homedir(),"Util/auxdata/jl.mod"))
 end
+ddir = normpath(joinpath(Base.source_dir(),"../../auxdata/jl.mod"))
+if all(LOAD_PATH.!=ddir)  push!(LOAD_PATH,ddir)  end
 
-# Import Julia and self-made modules
-using PyCall, PyPlot, DataFrames
-using make_plots
+# Load modules/functions/python libraries
+# Routines linked to python
+try using PyPlot
+catch
+  Pkg.add("PyPlot")
+  using Pyplot
+end
+try using PyCall
+catch
+  Pkg.add("PyCall")
+  using PyCall
+end
+# Data handling and data input
+try using DataFrames
+catch
+  Pkg.add("DataFrames")
+  using DataFrames
+end
+try using make_plots
+catch
+  download("https://raw.githubusercontent.com/pb866/auxdata/master/jl.mod/make_plots.jl",
+           joinpath(Base.source_dir(),"jl.mod","make_plots.jl"))
+  using make_plots
+end
 
 # Import python functions
 @pyimport numpy as np
