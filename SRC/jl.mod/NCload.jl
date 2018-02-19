@@ -1,4 +1,4 @@
-#!/usr/local/bin/julia
+__precompile__()
 
 
 """
@@ -48,8 +48,24 @@ if isdir(joinpath(homedir(),"Util/auxdata/jl.mod")) &&
   all(LOAD_PATH.!=joinpath(homedir(),"Util/auxdata/jl.mod"))
   push!(LOAD_PATH,joinpath(homedir(),"Util/auxdata/jl.mod"))
 end
-using PyCall, DataFrames
-using fhandle: test_file
+
+
+try using PyCall
+catch
+  Pkg.add("PyCall")
+  using PyCall
+end
+try using DataFrames
+catch
+  Pkg.add("DataFrames")
+  using DataFrames
+end
+try using fhandle: test_file
+catch
+  download("https://raw.githubusercontent.com/pb866/auxdata/master/jl.mod/fhandle.jl",
+           joinpath(Base.source_dir(),"fhandle.jl"))
+  using fhandle: test_file
+end
 
 
 ##########################
@@ -101,7 +117,7 @@ function get_ncdata(ncfile::AbstractString)
   ncfile = test_file(ncfile,default_dir=def_dir)
   # Define path of python library and call it to read netCDF data
   unshift!(PyVector(pyimport("sys")["path"]),
-    joinpath(Base.source_dir(),"py.lib"))
+    normpath(joinpath(Base.source_dir(),"py.lib")))
   @pyimport ncdata
 
   # Read netCDF data from file

@@ -1,6 +1,21 @@
-import netCDF4,re
+import os
+try:
+    import netCDF4
+except:
+    os.system('pip install netCDF4')
+    import netCDF4
 from netCDF4 import Dataset
-import pandas as pd
+try:
+    import re
+except:
+    os.system('pip install re')
+    import re
+try:
+    import pandas as pd
+except:
+    os.system('pip install pandas')
+    import pandas as pd
+
 
 def get(filename):
     nc = Dataset(filename,'r')
