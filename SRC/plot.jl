@@ -23,22 +23,27 @@ for n = 1:length(icase)
     # Loop over species and scenarios for flux plots
     for spc in plotdata[n]  for case in icase[n]
       if sfig=="on"
-        sfile = join([what[n],spc,label[case]],"_")*".pdf"
+        if unit[n] == "mlc"  ||  unit[n] == "cm-3"
+          sfile = join([what[n],spc,label[case]],"_")*".pdf"
+        else
+          sfile = join([what[n],unit[n]*"h"*spc,label[case]],"_")*".pdf"
+        end
         sfile = joinpath(Base.source_dir(),"../FIG/"*replace(sfile,"/","-"))
       else
         sfile = ""
       end
       # Load plot data from ropa analysis
       src, snk, src_rev, snk_rev =
-        load_plotdata(spc,case,sources,sinks,concs,label,llim=lims[1],ulim=lims[2])
+        load_plotdata(spc,case,sources,sinks,concs,unit[n],llim=lims[1],ulim=lims[2])
       # Define time format
       modtime = specs[case][Symbol(t_frmt)]
       # Output flux plots
-      fig = plot_data(spc,label[case],modtime,src,snk,nights[case],pltnight,t_frmt,sfile)
+      fig = plot_data(spc,label[case],modtime,src,snk,unit[n],
+            nights[case],pltnight,t_frmt,sfile)
       if fig != nothing  pdffile[:savefig](fig)  end
       # if fig != nothing  fig[:show]()  end
       # Output revised flux plots, if major fluxes have been removed
-      fig = plot_data(spc,label[case],modtime,src_rev,snk_rev,
+      fig = plot_data(spc,label[case],modtime,src_rev,snk_rev,unit[n],
             nights[case],pltnight,t_frmt,sfile)
       if fig != nothing  pdffile[:savefig](fig)  end
       # if fig != nothing  fig[:show]()  end
@@ -53,6 +58,9 @@ for n = 1:length(icase)
           spc_list = join(spc[1:3],"+")*"+more"
         else
           spc_list = join(spc[1:3],"+")
+        end
+        if unit[n] != "mlc"  &&  unit[n] != "cm-3"
+          spc_list = join([unit[n],spc_list],"_")
         end
         sfile = join([what[n],spc_list,label[icase[n][i]]],"_")*".pdf"
         sfile = joinpath(Base.source_dir(),"../FIG/"*replace(sfile,"/","-"))
@@ -88,7 +96,11 @@ for n = 1:length(icase)
     # Plot line plots of species concentrations for all cases
     for case in plotdata[n]
       if sfig=="on"
-        sfile = join([what[n],join(case,"+"),join(label,"+")],"_")*".pdf"
+        if unit[n] == "mlc"  ||  unit[n] == "cm-3"
+          sfile = join([what[n],join(case,"+"),join(label,"+")],"_")*".pdf"
+        else
+          sfile = join([what[n],unit[n]*join(case,"+"),join(label,"+")],"_")*".pdf"
+        end
         sfile = joinpath(Base.source_dir(),"../FIG/"*replace(sfile,"/","-"))
       else
         sfile = ""
@@ -118,7 +130,11 @@ for n = 1:length(icase)
     # Plot line plots of reaction rates for all cases
     for case in plotdata[n]
       if sfig=="on"
-        sfile = join([what[n],join(case,"+"),join(label,"+")],"_")*".pdf"
+        if unit[n] == "mlc"  ||  unit[n] == "cm-3"
+          sfile = join([what[n],join(case,"+"),join(label,"+")],"_")*".pdf"
+        else
+          sfile = join([what[n],unit[n]*join(case,"+"),join(label,"+")],"_")*".pdf"
+        end
         sfile = joinpath(Base.source_dir(),"../FIG/"*replace(sfile,"/","-"))
       else
         sfile = ""

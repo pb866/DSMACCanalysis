@@ -15,8 +15,8 @@ scenario(s).
 
 ## private
 - spc_stats
-- get_Xdata
 - get_Ydata
+- def_minor
 """
 module plot_ropa
 
@@ -114,28 +114,54 @@ end #function plot_fluxes
 
 
 """
-    load_plotdata(spc,s,sources,sinks,conc,scen;llim::Float64=0.05,ulim::Float64=0.7)
+    load_plotdata(spc,s,sources,sinks,conc,unit;llim::Float64=0.05,ulim::Float64=0.7)
 
 From the species MCM name `spc` and the chosen scenario with index `s` as well as the
 `sources` and `sinks` flux data and the species `conc`entrations prepare plot data
-for a time-resolved sink and source analysis.
+for a time-resolved sink and source analysis. Convert data to the specified `unit`.
 
 A lower (`llim`) and (`upper`) cut-off (by default 5%/70%) for minor/major fluxes
 can be defined. Minor fluxes are groupednin the plots, major fluxes are omitted.
 Furthermore, the full list with scenario names (`scen`) is needed.
+
+The function return for tuples for the sinks and sources with and without major fluxes,
+respectively, with the flux data in PyPlot format, the legend data, and a list of
+omitted major fluxes (or the string `"no fluxes"` for the original data).
 """
-function load_plotdata(spc,s,sources,sinks,conc,scen;
+function load_plotdata(spc,s,sources,sinks,conc,unit;
                        llim::Float64=0.05, ulim::Float64=0.7)
   # Generate y data for sources
   idx, fraction = spc_stats(spc,s,sources)
-  if idx != nothing  Ysrc, Ysrc_rev = get_Ydata(sources,s,idx,fraction,llim,ulim)
+  if idx != nothing
+    Ysrc, Ysrc_rev = get_Ydata(sources,s,idx,fraction,llim,ulim)
+    if unit == "ppm"
+      Ysrc[1] .*= (3.6e9/mean(conc[s][:M]))
+      if Ysrc_rev[1]≠"no fluxes"  Ysrc_rev[1] .*= (3.6e9/mean(conc[s][:M]))  end
+    elseif unit == "ppb"
+      Ysrc[1] .*= (3.6e12/mean(conc[s][:M]))
+      if Ysrc_rev[1]≠"no fluxes"  Ysrc_rev[1] .*= (3.6e12/mean(conc[s][:M]))  end
+    elseif unit == "ppt"
+      Ysrc[1] .*= (3.6e15/mean(conc[s][:M]))
+      if Ysrc_rev[1]≠"no fluxes"  Ysrc_rev[1] .*= (3.6e15/mean(conc[s][:M]))  end
+    end
   else
     Ysrc = ("no fluxes","no fluxes","no fluxes")
     Ysrc_rev = ("no fluxes","no fluxes","no fluxes")
   end
   # Generate y data for sinks
   idx, fraction = spc_stats(spc,s,sinks)
-  if idx != nothing  Ysnk, Ysnk_rev = get_Ydata(sinks,s,idx,fraction,llim,ulim)
+  if idx != nothing
+    Ysnk, Ysnk_rev = get_Ydata(sinks,s,idx,fraction,llim,ulim)
+    if unit == "ppm"
+      Ysnk[1] .*= (3.6e9/mean(conc[s][:M]))
+      if Ysnk_rev[1]≠"no fluxes"  Ysnk_rev[1] .*= (3.6e9/mean(conc[s][:M]))  end
+    elseif unit == "ppb"
+      Ysnk[1] .*= (3.6e12/mean(conc[s][:M]))
+      if Ysnk_rev[1]≠"no fluxes"  Ysnk_rev[1] .*= (3.6e12/mean(conc[s][:M]))  end
+    elseif unit == "ppt"
+      Ysnk[1] .*= (3.6e15/mean(conc[s][:M]))
+      if Ysnk_rev[1]≠"no fluxes"  Ysnk_rev[1] .*= (3.6e15/mean(conc[s][:M]))  end
+    end
   else
     Ysnk = ("no fluxes","no fluxes","no fluxes")
     Ysnk_rev = ("no fluxes","no fluxes","no fluxes")
@@ -147,12 +173,18 @@ end #function load_plotdata
 
 
 """
-    plot_data(spc,scen,modtime,src,snk)
+    plot_data(spc,scen,modtime,src,snk,unit,nights,pltnight,t_frmt,sfile)
 
-Plot sources (`src`) and sinks (`snk`) over model time as a stacked area plot
-for the current species `spc` int the current scenario `scen`.
+Plot sources (`src`) and sinks (`snk`) over model time (`modtime`) in the chosen
+time format `t_frmt` as a stacked area plot for the current species `spc` in the
+scenario `scen` and in the chosen `unit`.
+
+In the plots, show night-time periods (with times specified in matrix `nights`)
+shaded with specifications given in `pltnight`. Moreover, if a file name `sfile`
+is provided, save plots to folder `FIG` as single pdfs in addition to the pdf
+with the compiled plots as specified by the second script argument.
 """
-function plot_data(spc,scen,modtime,src,snk,nights,pltnight,t_frmt,sfile)
+function plot_data(spc,scen,modtime,src,snk,unit,nights,pltnight,t_frmt,sfile)
   # Plot data and save plots
   if src[1]=="no fluxes" && snk[1]=="no fluxes"
     # Ignore plots with no valid data
@@ -163,17 +195,17 @@ function plot_data(spc,scen,modtime,src,snk,nights,pltnight,t_frmt,sfile)
     snk[1] .*= -1.
     # Set colour scheme
     cs, dt = sel_ls(cs="sink",nc=1:length(snk[2]))
-    fig = plot_flux(spc, scen, modtime, snk, cs, nights, pltnight, t_frmt, sfile)
+    fig = plot_flux(spc,scen,modtime,snk,unit,cs,nights,pltnight,t_frmt,sfile)
     # Restore original sink fluxes
     snk[1] .*= -1.
   elseif snk[1]=="no fluxes"
     # Plots without sinks
     # Set colour scheme
     cs, dt = sel_ls(cs="source",nc=1:length(src[2]))
-    fig = plot_flux(spc, scen, modtime, src, cs, nights, pltnight, t_frmt, sfile)
+    fig = plot_flux(spc,scen,modtime,src,unit,cs,nights,pltnight,t_frmt,sfile)
   else
     # Plots with sources and sinks
-    fig = plot_prodloss(spc, scen, modtime, src, snk, nights, pltnight, t_frmt, sfile)
+    fig = plot_prodloss(spc,scen,modtime,src,snk,unit,nights,pltnight,t_frmt,sfile)
   end
 
   # Return PyObject with plot data
