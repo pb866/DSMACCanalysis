@@ -52,23 +52,25 @@ Content
 Installation
 ------------
 
-The script is written for and test with
-[Julia version 0.6.2](https://julialang.org/downloads/). If not installed, install Julia. Using `Pkg.add("<package name>")` the following packages need to be installed
-in Julia:
-
-- PyCall
-- PyPlot
-- DataFrames
-- Juno
+The script is written for and tested with the
+[Julia Mac version 0.6.2](https://julialang.org/downloads/). Further tests have
+been performed with the Anaconda 4.3.29 julia v0.6.1 version in an UNIX environment.  
+If not installed, install Julia. The script furthermore uses miniconda's python
+version for julia. Missing Julia and python packages will be installed
+automatically using `Conda` and `pip`.
 
 The script will analyse DSMACC model output from the
 [DSMACC-testing version](https://github.com/pb866/DSMACC-testing.git).
 Create a git submodule in the `AnalysisTools` folder named `DSMACCanalysis`
-(or clone this repository into the AnalysisTools folder).
+(or clone this repository into the AnalysisTools folder) for optimal use with
+DSMACC.
 
 You will furthermore need the modules `fhandle` and `make_plots` from the
-[auxdata](https://github.com/pb866/auxdata.git) repository. Clone the repository
-to a directory of your liking and specify the directory paths in the preambles of
+[auxdata](https://github.com/pb866/auxdata.git) repository. The script will
+automatically download the necessary modules from the auxdata repository and
+store it in the `SRC/jl.mod/` folder. Alternatively, if you have further scripts
+that share files with auxdata, it might be worth cloning this repository to a
+directory of your liking and specify the directory paths in the preambles of
 the following modules:
 
 - DSMACCplot (ll. 27 – 38)
@@ -277,6 +279,7 @@ general specifications of the plots. Currently, options are available for:
 - Night-time shading in plots
 - A lower and upper cut-off for displaying sink and source fluxes c
 - Calculation of net fluxes for inorganic NOx/HOx recycling
+- Saving additional single pdfs to folder `FIG`
 
 By default, _MCMv3.3.1_ is assumed. You can specify, this or any other version
 using the keyword `MCM:` followed by the verion number, e.g. `MCM: v3.3.1`.
@@ -308,6 +311,12 @@ the ROPA analysis as described above. By default, this feature is set. To illust
 this in the input file use the keyword `cycles:` in the settings section followed
 by `reduce`. You may omit this line, if you want net fluxes. Use any other phrase
 after the keyword `cycles:` such as `full` to shut off this feature.
+
+As single pdfs can be more convenient, if the plots are produced for presentations,
+single pdfs can be saved to a folder `FIG`, which will be created, if it doesn't
+exist. Otherwise, you will be asked, whether results can be overwritten or the
+script will terminate, so previous results can be saved first. Select between `on`
+and `off` of the `Fig` parameter, default is: `Fig: off`.
 
 
 ### Plotting section

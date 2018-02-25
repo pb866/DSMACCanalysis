@@ -134,9 +134,11 @@ end #function net_flux
 
 
 """
-    del_zerofluxes(flux_data)
+    del_zerofluxes(educt,product,flux_data)
 
-Delete fluxes in `flux_data` with zero turnover.
+Delete fluxes in `flux_data` with zero turnover. Remove the corresponding educts
+and products from the `educt` and `product` array to assure same indexing in the
+arrays `educt`, `product`, and `flux_data`.
 """
 function del_zerofluxes(educt,product,flux_data)
   # Loop over scenarios

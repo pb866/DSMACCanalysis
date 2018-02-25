@@ -18,6 +18,7 @@ of the data.
 - get_settings
 - prepare_plots
 - get_stackdata
+- def_night
 
 ## Private
 - rm_blanklines
@@ -39,7 +40,7 @@ export commission_plot,
        def_night
 
 # Find directory of module source code
-cdir=Base.source_dir()
+cdir = Base.source_dir()
 
 # Loading external and internal self-made modules
 # Define directory of modules in main script
@@ -54,13 +55,32 @@ if isdir(joinpath(homedir(),"Util/auxdata/jl.mod")) &&
   all(LOAD_PATH.!=joinpath(homedir(),"Util/auxdata/jl.mod"))
   push!(LOAD_PATH,joinpath(homedir(),"Util/auxdata/jl.mod"))
 end
-# Current directory
+# Add directories to LOAD_PATH
 if all(LOAD_PATH.!=cdir)  push!(LOAD_PATH,cdir)  end
 
-using fhandle
-using make_plots: night_shade
+try using DataFrames
+catch
+  Pkg.add("DataFrames")
+  using DataFrames
+end
+try using DataArrays: DataArray
+catch
+  Pkg.add("DataArrays")
+  using DataArrays: DataArray
+end
+try using fhandle
+catch
+  download("https://raw.githubusercontent.com/pb866/auxdata/master/jl.mod/fhandle.jl",
+           joinpath(Base.source_dir(),"fhandle.jl"))
+  using fhandle
+end
+try using make_plots: night_shade
+catch
+  download("https://raw.githubusercontent.com/pb866/auxdata/master/jl.mod/fhandle.jl",
+           joinpath(Base.source_dir(),"make_plots.jl"))
+  using make_plots: night_shade
+end
 using NCload
-using DataFrames
 
 
 ##########################
@@ -191,6 +211,7 @@ function get_settings(lines,sett_idx)
   cycles = "reduce"
   nightcol = "w"; ntrans = 0.0
   t_frmt = "TIME"
+  fig = "off"
   # Overwrite parameters with values from the Settings section, if defined
   if sett_idx!=0
     i = sett_idx
@@ -207,13 +228,15 @@ function get_settings(lines,sett_idx)
         llim, ulim = float.(split(lines[i][9:end]))
       elseif lines[i][1:7]=="cycles:"
         cycles = strip(lines[i][8:end])
+      elseif lines[i][1:4]=="Fig:"
+        fig = strip(lines[i][6:end])
       end
       i += 1
     end
   end
 
   # Return lower and upper cut-off
-  return [llim, ulim], cycles, [nightcol, ntrans], mcm, t_frmt
+  return [llim, ulim], cycles, [nightcol, ntrans], mcm, t_frmt, fig
 end #function get_settings
 
 

@@ -57,8 +57,19 @@ if isdir(joinpath(homedir(),"Util/auxdata/jl.mod")) &&
   all(LOAD_PATH.!=joinpath(homedir(),"Util/auxdata/jl.mod"))
   push!(LOAD_PATH,joinpath(homedir(),"Util/auxdata/jl.mod"))
 end
-using DataFrames
-using fhandle: rdinp
+
+
+try using DataFrames
+catch
+  Pkg.add("DataFrames")
+  using DataFrames
+end
+try using fhandle: rdinp
+catch
+  download("https://raw.githubusercontent.com/pb866/auxdata/master/jl.mod/fhandle.jl",
+           joinpath(Base.source_dir(),"fhandle.jl"))
+  using fhandle: rdinp
+end
 
 
 ##########################
@@ -99,10 +110,15 @@ end #function readDB
 
 
 """
-    translateNMVOC(dframes,spcDB::DataFrames.DataFrame)
+    translateNMVOC(dframes,spcDB::DataFrames.DataFrame;MCM::String="v3.3.1")
 
-From array with dataframes of species concentrations and the translation database,
-return an array of arrays with species names translated to GECKO-A nomenclature.
+From an array with dataframes of species concentrations (`dframes`) and the
+translation database `spcDB`, return an array of arrays with species names
+translated to GECKO-A nomenclature.
+
+Keyword argument `MCM` helps to resolve issues with different versions of the MCM,
+but is in an experimental state. If, `v3.3.1` is selected (default), the first
+database entry is chosen, for any other version, the last database entry is used.
 """
 function translateNMVOC(dframes,spcDB::DataFrames.DataFrame;MCM::String="v3.3.1")
 
@@ -146,11 +162,15 @@ end #function translateNMVOC
 
 
 """
-    translateSPC(specs,db,sym_in,sym_out)
+    translateSPC(specs,db,sym_in,sym_out;MCM::String="v3.3.1")
 
 Translate a list of species `specs` with the help of the translation database `db`
 from the chosen language with keyword `sym_in` to the chosen language with keyword
 `sym_out` and return list of translated species names `tspc`.
+
+Keyword argument `MCM` helps to resolve issues with different versions of the MCM,
+but is in an experimental state. If, `v3.3.1` is selected (default), the first
+database entry is chosen, for any other version, the last database entry is used.
 """
 function translateSPC(specs,db,sym_in,sym_out;MCM::String="v3.3.1")
 
@@ -175,7 +195,7 @@ end #function translateSPC
 
 
 """
-    group_specs(gspc,spcDB::DataFrames.DataFrame)
+    group_specs(gspc,spcDB::DataFrames.DataFrame;MCM::String="v3.3.1")
 
 From an array with list of GECKO-A names `gspc` and the translation database `spcDB`,
 group species into classes of different chromophore types, O:C ratio ranges, and
@@ -229,6 +249,12 @@ grouped by the respective properties for each scenario.
 CN stands for carbon number, although ether groups count towards the molecule's
 size as well.
 
+Keyword argument `MCM` specifies the version of the Master Chemical Mechanism used.
+For the interpretation of the chemical formula translations between MCM and GECKO-A
+names are necessary. Therefore, it is necessary to know the version used to assure
+a correct translation as species names can differ in different MCM version. However,
+this feature is experimental and my result in incorrect translations and, hence,
+incorrect assigned properties.
 """
 function group_specs(gspc,spcDB::DataFrames.DataFrame;MCM::String="v3.3.1")
 

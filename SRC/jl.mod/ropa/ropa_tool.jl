@@ -25,7 +25,11 @@ if all(LOAD_PATH.!=cdir)  push!(LOAD_PATH,cdir)  end
 if all(LOAD_PATH.!=pdir)  push!(LOAD_PATH,pdir)  end
 
 # Load modules/functions/python libraries
-using DataFrames
+try using DataFrames
+catch
+  Pkg.add("DataFrames")
+  using DataFrames
+end
 using NCload
 using prepare_ropa, FluxAnalysis
 

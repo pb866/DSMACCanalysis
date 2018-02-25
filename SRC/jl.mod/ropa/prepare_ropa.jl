@@ -24,8 +24,11 @@ module prepare_ropa
 export get_names,
        split_rxn
 
-using DataFrames
-
+try using DataFrames
+catch
+  Pkg.add("DataFrames")
+  using DataFrames
+end
 
 ##########################
 ###  PUBLIC FUNCTIONS  ###
