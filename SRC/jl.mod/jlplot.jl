@@ -18,6 +18,7 @@ of the data.
 - get_settings
 - prepare_plots
 - get_stackdata
+- def_night
 
 ## Private
 - rm_blanklines

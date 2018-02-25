@@ -30,15 +30,16 @@ for n = 1:length(icase)
       end
       # Load plot data from ropa analysis
       src, snk, src_rev, snk_rev =
-        load_plotdata(spc,case,sources,sinks,concs,label,llim=lims[1],ulim=lims[2])
+        load_plotdata(spc,case,sources,sinks,concs,unit[n],llim=lims[1],ulim=lims[2])
       # Define time format
       modtime = specs[case][Symbol(t_frmt)]
       # Output flux plots
-      fig = plot_data(spc,label[case],modtime,src,snk,nights[case],pltnight,t_frmt,sfile)
+      fig = plot_data(spc,label[case],modtime,src,snk,unit[n],
+            nights[case],pltnight,t_frmt,sfile)
       if fig != nothing  pdffile[:savefig](fig)  end
       # if fig != nothing  fig[:show]()  end
       # Output revised flux plots, if major fluxes have been removed
-      fig = plot_data(spc,label[case],modtime,src_rev,snk_rev,
+      fig = plot_data(spc,label[case],modtime,src_rev,snk_rev,unit[n],
             nights[case],pltnight,t_frmt,sfile)
       if fig != nothing  pdffile[:savefig](fig)  end
       # if fig != nothing  fig[:show]()  end

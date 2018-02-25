@@ -5,7 +5,7 @@ DATA/TOLm3.nc DATA/TOLm4.nc
 # General plotting parameters
 Settings:
 MCM:     v3.3.1
-time:    JTIME
+time:    TIME
 night:   black/0.2
 cut-off: 0.05, 1.0
 cycles:  reduce
@@ -13,7 +13,6 @@ Fig:     on
 
 
 Plotting: # Specify plots
-
 # Concentration of primary compound
 MCMv3.3.1, MCM/GECKO-A: specs/ppb
 TOLUENE
@@ -33,7 +32,7 @@ OH
 HO2
 
 # Stacked area plots of lumped concentrations
-MCMv3.3.1 MCM/GECKO-A: stack
+MCMv3.3.1 MCM/GECKO-A: stack/ppb
 Ald Ket DiCar Kete Nitro DiNitro Nit DiNit PNit DiPNit PAN ROOH DiROOH PAA SCI Poly NoChr Rad New
 oc1 oc2 oc3 oc4
 sc1 sc2 sc3 sc4 sc5 sc6 sc7 sc8 sc9 sc0
@@ -41,7 +40,11 @@ sc1 sc2 sc3 sc4 sc5 sc6 sc7 sc8 sc9 sc0
 # Source and sink fluxes from ROPA analysis
 MCMv3.3.1, MCM/GECKO-A: fluxes
 TOLUENE
-OH, HO2, O3
+OH, HO2
+
+MCMv3.3.1, MCM/GECKO-A: fluxes/ppb
+O3
+NO, NO2
 
 # Reaction rates
 MCM/GECKO-A: rates
