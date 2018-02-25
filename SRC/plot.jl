@@ -23,7 +23,11 @@ for n = 1:length(icase)
     # Loop over species and scenarios for flux plots
     for spc in plotdata[n]  for case in icase[n]
       if sfig=="on"
-        sfile = join([what[n],spc,label[case]],"_")*".pdf"
+        if unit[n] == "mlc"  ||  unit[n] == "cm-3"
+          sfile = join([what[n],spc,label[case]],"_")*".pdf"
+        else
+          sfile = join([what[n],unit[n]*"h"*spc,label[case]],"_")*".pdf"
+        end
         sfile = joinpath(Base.source_dir(),"../FIG/"*replace(sfile,"/","-"))
       else
         sfile = ""
@@ -54,6 +58,9 @@ for n = 1:length(icase)
           spc_list = join(spc[1:3],"+")*"+more"
         else
           spc_list = join(spc[1:3],"+")
+        end
+        if unit[n] != "mlc"  &&  unit[n] != "cm-3"
+          spc_list = join([unit[n],spc_list],"_")
         end
         sfile = join([what[n],spc_list,label[icase[n][i]]],"_")*".pdf"
         sfile = joinpath(Base.source_dir(),"../FIG/"*replace(sfile,"/","-"))
@@ -89,7 +96,11 @@ for n = 1:length(icase)
     # Plot line plots of species concentrations for all cases
     for case in plotdata[n]
       if sfig=="on"
-        sfile = join([what[n],join(case,"+"),join(label,"+")],"_")*".pdf"
+        if unit[n] == "mlc"  ||  unit[n] == "cm-3"
+          sfile = join([what[n],join(case,"+"),join(label,"+")],"_")*".pdf"
+        else
+          sfile = join([what[n],unit[n]*join(case,"+"),join(label,"+")],"_")*".pdf"
+        end
         sfile = joinpath(Base.source_dir(),"../FIG/"*replace(sfile,"/","-"))
       else
         sfile = ""
@@ -119,7 +130,11 @@ for n = 1:length(icase)
     # Plot line plots of reaction rates for all cases
     for case in plotdata[n]
       if sfig=="on"
-        sfile = join([what[n],join(case,"+"),join(label,"+")],"_")*".pdf"
+        if unit[n] == "mlc"  ||  unit[n] == "cm-3"
+          sfile = join([what[n],join(case,"+"),join(label,"+")],"_")*".pdf"
+        else
+          sfile = join([what[n],unit[n]*join(case,"+"),join(label,"+")],"_")*".pdf"
+        end
         sfile = joinpath(Base.source_dir(),"../FIG/"*replace(sfile,"/","-"))
       else
         sfile = ""
